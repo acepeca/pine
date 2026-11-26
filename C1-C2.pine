@@ -1,0 +1,2808 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Gregorius_XV & cdikici71
+// Mark II (2026-11-21) = Mark I v1 yang dipangkas ke inti yang dipakai bersama oleh TTrades (Fractal Model), Gareth (GxT) dan Mang Bob:
+// sebuah candle HTF menyapu (sweep) candle sebelumnya lalu close kembali ke dalam, candle berikutnya yang ditradingkan, dikonfirmasi oleh CISD.
+// Dipertahankan: panel HTF1 (pairing FM) + HTF2 (timeframe sendiri) dengan FVG panel, sweep panel dan high / low candle terakhir; mesin FM CISD
+// (C2 / C3, Display Cap, Early CISD, sweep line, label C, Previous EQ, T-Spot, IC-CISD); FM SMT dengan SATU simbol (chart + panel HTF1);
+// PSP (HTF1 + HTF2, Confirmed / Live); Vertical Lines, HTF Open, Open Lines, Daily / Weekly Open; status bar.
+// Dibuang dari Mark I: Formation Liquidity, Key FVG + SMT Fill, HTF Candle SMT, Strength Switch, SMT Fill panel, HTF2 SMT / SS,
+// simbol SMT 2 dan 3 (tanpa request), Key Levels + HTF1 Pane Range, MMXM, Daily 50%.
+// [Mark II b] Opsi HTF1 Fractal = FM memakai pairing sistem 1m→15m, 3m→15m, 5m→1H, 15m→4H, 30m→4H, 1H→7H, D→W, M→3M.
+// [Mark II c] Label C2 dari setup tidak valid = ✕ merah (warna Invalid): xC2 saat C3, atau wick yang kemudian mengambil extreme C2 (protected swing hilang).
+// [Mark II d/e] Setelah C2 diambil belakangan (✕ merah, satu ukuran lebih besar), label C3 / C4, IC-CISD, kotak T-Spot dan Previous EQ dari setup itu disembunyikan; garis CISD-nya tetap sampai setup yang lebih baru mengambil slot Display Cap.
+// [Mark II g] Waktu garis vertikal kembali ke HH:mm untuk setiap jam (18:00, bukan 18).
+// [Mark II i] HTF Candle SMT kembali untuk satu simbol SMT: panel HTF1 (dan panel HTF2, toggle sendiri), Live / Confirmed, Lookback 1-3, Cap; close melewati extreme SMT menghapus garis yang tersimpan. Tanpa request tambahan.
+// [Mark II j] SMT = Chart / Pane / Both / Off (Pane juga menggambar HTF Candle SMT di panel HTF1; HTF2 Candle SMT dibuang); simbol Second SMT opsional (satu request tambahan hanya saat aktif); satu simbol -> label SMT, dua -> nama pasangan.
+// [Mark II k] xC2: C3 merah ikut disembunyikan (hanya ✕ merah yang tersisa); warna default Vertical Lines hitam dengan opacity 29%.
+// [Mark II l] SMT Fill kembali hanya di panel HTF1 (opsi Fill di baris Candle SMT): SMT antara dua candle panel berurutan di dalam FVG panel yang masih hidup, garis titik-titik A -> B, kotak gap lalu disembunyikan. Tanpa request tambahan.
+// [Mark II m] SMT Fill punya baris sendiri: toggle, warna, gaya garis, lebar.
+// [Mark II ae] Time in Body dibuang; semua default input disesuaikan dengan screenshot referensi pengguna (Status Bar Bottom Right, Session Levels off, SS off, HTF2 PSP off, Candle SMT Confirmed / Lookback 1 / HTF2 on, Label Chart Tiny, Last Candle H/L off, Daily / Weekly Open off, C-Labels Both, ...).
+// [Mark II ah] Garis EQ HTF3 membawa label '0.5 D' / '0.5 W' di ujung kanan, diwarnai menurut candle pemilik EQ (bullish #089981, bearish merah).
+// [Mark II aj] Grup HTF3: PDH / PDL (PWH / PWL di Weekly) seperti Session Levels: 1-2 candle HTF3 terakhir yang sudah selesai, belum tersapu = solid ke kanan dengan nama, tersapu = berhenti di bar penyapu (gaya swept, nama di awal garis). Ada gaya Unswept / Swept sendiri, Swept Labels, Sets; set yang lebih lama bernama PDH-2 / PDL-2.
+// [Mark II aj] Merapikan menu: HTF2 Open Time dipindah ke bawah baris HTF Label, 'Previous EQ: Draw On' ke bawah baris Previous EQ, 'HTF2 PSP (HTF2 Pane)' ke bawah baris PSP. Logika tidak berubah.
+// [Mark II ai] HTF2 = 4H / 6H: waktu open ditulis 2 digit (18 22 02 06) agar label tidak saling menumpuk; 7H tetap HH:mm.
+// [Mark II ag] Waktu open HTF2 (7H / 4H / 6H) berada dalam satu baris di bawah low terendah panel HTF2 (tidak ada lagi label bertumpuk); toggle baru HTF2 Open Time (4H / 6H), 7H tetap menampilkan waktunya.
+// [Mark II af] Panel HTF3 (Daily / Weekly, grup 5.1): candle seperti panel lain, garis titik-titik open / high / low + harga OHLC (candle berjalan), EQ titik-titik (candle sebelumnya + candle ekspansi terbaru), dan pembacaan fase per candle menurut Mang Bob / Gareth (Accumulating / Manipulating / Distributing? / Distributing / Expanding / Failed; chart <= 15m). Tanpa request tambahan.
+// [Mark II ad] HTF2 = 4H atau 6H: candle panel menampilkan waktu open New York di bawah candle, seperti panel 7H (setiap candle; tanpa pengecualian candle pendek).
+// [Mark II o] PO3 A / M / D dibuang; candle panel 7H menampilkan waktu open New York (18:00, 01:00, 08:00; bukan candle pendek 15:00) menggantikan A / L / N.
+// [Mark II p/q] Pairing Range (2D): -R / +R = high / low dari 2 hari trading NY terakhir yang sudah selesai, tetap sepanjang hari; hanya di chart.
+// [Mark II s] Session Levels (grup 9 baru): high / low dari sesi Asia, London, NY AM dan NY PM terakhir (jam dan timezone sendiri); belum tersapu = solid ke kanan dengan nama, tersapu = berhenti di bar sweep dengan gaya swept. Chart intraday sampai 1H, tanpa request.
+// [Mark II t] SMT: tag '2S' pada label C2 dari setup dua tahap (SMT C1->C2 plus SMT C2->C3 atau PSP di C2 / C3); Strength Switch 'SS' di panel HTF1 (sisi yang lebih kuat dari SMT / PSP terakhir berbalik dalam N candle); label PSP diwarnai menurut arah (close chart naik / turun).
+// [Mark II u] Request simbol SMT tanpa calc_bars_count (opsi itu hanya menyimpan bar terakhir sebelum hari ini, sehingga Bar Replay tidak punya SMT / PSP / SS).
+// [Mark II v] Status bar: '(no data)' setelah simbol SMT yang request-nya tidak mengembalikan apa pun di bar terakhir.
+// [Mark II w] Symbol Data = HTF1 (default): simbol SMT di-request pada timeframe HTF1 (HTF2 PSP pada timeframe HTF2), sehingga Bar Replay menyimpan SMT / PSP / SS jauh ke belakang (histori intraday simbol kedua pendek). Chart = request lama pada timeframe chart.
+// [Mark II x] Session Levels: level yang tersapu tidak punya nama secara default (toggle Swept Labels), nama hanya di tepi kanan.
+// [Mark II y] Session Levels: nama level yang tersapu berada di awal garisnya (di atas high, di bawah low); Swept Labels aktif secara default.
+// [Mark II z] Expansion EQ di panel HTF1: EQ dari candle ekspansi terbaru, dipertahankan sampai ada close di luarnya.
+// [Mark II z2] Expansion EQ digambar seperti Previous EQ (warna, gaya, lebar, sampai candle berikutnya + 2 bar, tanpa label).
+// [Mark II aa] Key Levels dari Mark I kembali (-TF / +TF dari panel tertinggi yang tampil, di chart); Pairing Range (2D) dibuang.
+// [Mark II ab] Candle SMT HTF2 (toggle, default off): HTF Candle SMT di panel HTF2, mode / Lookback / Cap yang sama, high / low ditambahkan ke request HTF2 PSP.
+// [Mark II ac] (Time in Body, dibuang lagi di ae)
+// [Mark II C1-C2] Potongan mandiri dari Mark II: panel HTF + mesin FM dengan C1 / C2 (label C3 / C4 off), CISD, sweep line, Previous / Expansion EQ, T-Spot, IC-CISD, garis vertikal, open, key levels. SMT, PSP, Strength Switch, Session Levels, HTF3 / PDH dan status bar dihapus dari menu (dikunci off).
+// Riwayat step sebelum Mark II: lihat Mark I v1 (step 72).
+
+//@version=6
+indicator("Mark II C1-C2", overlay=true, max_lines_count=500, max_labels_count=500, max_boxes_count=500, max_bars_back=5000)
+import Gregorius_XV/GXVUtils/10 as QTU
+
+//==============================================================================
+// Deklarasi waktu
+//==============================================================================
+tf_sec = timeframe.in_seconds(timeframe.period)
+TF_SEC_60 = timeframe.in_seconds("60")
+TF_SEC_240 = timeframe.in_seconds("240")
+TF_SEC_D = timeframe.in_seconds("D")
+TF_SEC_W = timeframe.in_seconds("W")
+TF_SEC_M = timeframe.in_seconds("M")
+
+// [FM step 2] Helper timeframe: 7H ('420', dari pasangan 15m-7H) ditangani di sini, selebihnya oleh library
+const string TF_7H = '420'
+const int TF_7H_SEC = 25200
+f_htf_seconds(string tf) =>
+    tf == TF_7H ? TF_7H_SEC : QTU.htfSeconds(tf)
+f_htf_label(string tf, bool src) =>
+    tf == TF_7H ? '7H' : QTU.htfSourceLabel(tf, src)
+
+//==============================================================================
+// Grup (step 26: urutan menu = Timeframes, FM, SD, penanda waktu, panel, SMT, SMT-Fill / Sequence, range, status bar, performa)
+//==============================================================================
+gHTF = "1. Timeframes"
+gCISD = "2. FM Model"
+gFMLv = "3. FM Levels"
+gTM = "4. Time Markers"
+gHTFSetings = "5. HTF Pane Visuals"
+gH3 = "5.1 HTF3 (Daily / Weekly)"
+gSMT = "6. SMT / PSP"
+gSMTSym = "7. SMT Symbol"
+gStatus = "8. Status Bar"
+gSess = "9. Session Levels"
+gSessApp = "9.1 Session Appearance"
+gPerformance = "10. Performance"
+//==============================================================================
+// Input
+//==============================================================================
+
+// 1. TIMEFRAME
+htf1_fractal_input = input.string('Automatic', 'HTF1 Fractal', options = ['Automatic', 'FM', 'Custom', '3m-30m', '5m-1H', '15m-1H', '30m-4H', '1H-4H', '1H-7H', '4H-1D', '1D-1W'], group = gHTF, tooltip = 'FM pairing for HTF1 (the CISD model runs on HTF1, also when the HTF1 pane is hidden). Pairs from the materials only (step 54, Gareth / Mang Bob): W <- D swing, D <- 4H swing, 4H / 7H <- 1H / 30m swing, 1H <- 15m swing (PO3 slide), 1H / 30m executed on 5m / 3m.\n\nAutomatic: 3m→30m, 5m→1H, 15m→1H, 30m→4H, 1H→4H, 4H→D, D→W (other chart timeframes: no model, use Custom).\nFM (Mark II system pairing): 1m→15m, 3m→15m, 5m→1H, 15m→4H, 30m→4H, 1H→7H, D→W, M→3M (other chart timeframes: no model).\nCustom: HTF1 TF Source.\nA fixed pair needs a chart timeframe below its HTF, otherwise HTF1 is off.')
+htf_sweeps_tf_1_custom_tf = input.string('1h', 'TF Source', options = ['3m', '5m', '15m', '30m', '90m', '1h', '2h', '3h', '4h', '6h', '12h', 'D', '3D', 'W', 'M', '3M', '6M', '12M'], group = gHTF, active = htf1_fractal_input == 'Custom')
+htf_sweeps_tf_1_show = input.bool(true, 'Show HTF1 Pane', inline = 'TF1_pane', group = gHTF)
+htf_sweeps_tf_1_number = input.int(7, 'Candles', minval = 1, maxval = 60, inline = 'TF1_pane', group = gHTF, active = htf_sweeps_tf_1_show)
+htf_sweeps_tf_2_show = input.bool(true, 'Show HTF2 Pane', inline = 'TF2_pane', group = gHTF)
+htf_sweeps_tf_2_number = input.int(4, 'Candles', minval = 1, maxval = 60, inline = 'TF2_pane', group = gHTF, active = htf_sweeps_tf_2_show)
+htf_sweeps_tf_2_custom_tf = input.string('7h', 'HTF2 Timeframe', options = ['5m', '15m', '30m', '1h', '90m', '2h', '3h', '4h', '6h', '7h', '12h', 'D', '3D', 'W', 'M', '3M', '6M', '12M'], group = gHTF, active = htf_sweeps_tf_2_show, tooltip = 'Fixed timeframe for HTF2 (does not follow the chart timeframe). The HTF2 pane is hidden when the chart timeframe is not below it. It is shown whatever HTF1 is. 7H only: the New York open time under the pane candles (18:00, 01:00, 08:00; none on the short 15:00 candle).')
+htf_custom_daily_open = input.bool(false, 'Custom Daily Open        ', inline = 'customdaily', group = gHTF)
+htf_custom_daily_time = input.string('Midnight', '', options = ['Midnight', '18:00'], inline = 'customdaily', group = gHTF)
+
+// 2. MODEL FM
+cisd_show = input.bool(true, 'Enable CISD', inline = 'CISD', group = gCISD, tooltip = 'FM rules on the HTF1 timeframe (also when the HTF1 pane is hidden). Level = open of the opposing candle run traced back from the C2 extreme; triggers on a body close through it in C2 (once the sweep is back inside) or in C3; no trigger by the C3 close = dropped. Until C3 closes: C3 closing back beyond the swept C1 level, or a C3 wick beyond the C2 extreme (protected swing), voids the setup and hides its CISD.')
+cisd_display_cap = input.int(1, 'Display Cap', minval = 1, maxval = 50, group = gCISD, active = cisd_show, tooltip = 'How many of the newest setups whose C2 has closed with a CISD keep their line (newest C2 first, both directions). 1 = a new setup removes every older CISD. A setup that turned void / xC2 still uses its slot and draws nothing, so older lines do not come back. A CISD still forming inside C2 is drawn on top and does not count.')
+cisd_bull_clr = input.color(color.new(#2962ff, 0), '', inline = 'CISD', group = gCISD)
+cisd_bear_clr = input.color(color.new(#cd0030, 0), '', inline = 'CISD', group = gCISD)
+cisd_line_width = input.int(2, 'CISD Line Width', minval = 1, maxval = 5, group = gCISD, active = cisd_show)
+cisd_early_show = input.bool(true, 'Early CISD', inline = 'ECISD', group = gCISD, active = cisd_show, tooltip = 'On the running (not yet closed) chart bar: the price is already through the CISD level of a live setup (in C2 also back inside the swept level). Drawn dashed until the bar closes; the CISD only counts on the close.')
+cisd_early_line_style_input = input.string('Dashed', 'Style', options = ['Solid', 'Dashed', 'Dotted'], inline = 'ECISD', group = gCISD, active = cisd_show and cisd_early_show)
+cisd_early_line_width = input.int(1, 'Width', minval = 1, maxval = 5, inline = 'ECISD', group = gCISD, active = cisd_show and cisd_early_show)
+cisd_early_line_style = cisd_early_line_style_input == 'Solid' ? line.style_solid : cisd_early_line_style_input == 'Dotted' ? line.style_dotted : line.style_dashed
+fm_sweep_where = input.string('Both', 'Sweep Line', options = ['Chart', 'Pane', 'Both', 'Off'], inline = 'sweep', group = gCISD, tooltip = 'Step 58 (Chart Sweep Line + Pane Sweep in one). Chart: the swept C1 level of the FM setups (those holding a Display Cap slot, plus a live C2), from the C1 high / low to the C3 open (to the running bar while C2 runs). Pane (step 69): HTF1 and HTF2 alike, the newest sweep of the pane candles (a candle takes the high / low of the previous one and closes back inside; gone once a later candle closes beyond it), from the swept wick to the running candle + 2 bars, label = pane timeframe. Both = chart + panes. The last closed candle high / low in the panes has its own toggle in Key Levels.')
+bool fm_sweep_show = fm_sweep_where == 'Chart' or fm_sweep_where == 'Both'
+bool pane_sweep_show = fm_sweep_where == 'Pane' or fm_sweep_where == 'Both'
+htf_sweep_color = input.color(#000000, '', inline = 'sweep', group = gCISD, active = fm_sweep_where != 'Off')
+
+// 3. LEVEL FM
+fm_lbl_where = input.string('Both', 'C-Labels', options = ['Chart', 'Pane', 'Both', 'Off'], group = gFMLv, active = cisd_show, tooltip = 'Where the C1-C4 labels go: Chart = on the chart, Pane = on the HTF1 pane candles (when the HTF1 pane is shown), Both, Off. Step 49. Labels on the wick of each candle of the setups whose CISD uses a Display Cap slot: C1 at the swept high / low, C2 at the C2 extreme, C3 / C4 on the edge of their T-Spot (bottom = bullish, top = bearish, one bar right of its left side; chart only), otherwise at the high (bearish) or low (bullish) of that candle. They stay when the setup turns invalid, until a newer setup takes the slot. Invalid colour: C2 + C3 on xC2 (C3 beyond the C2 extreme), C3 when C3 closed back beyond the swept C1 level, C4 on xC4 (C4 beyond the C3 extreme).')
+bool fm_lbl_show = fm_lbl_where != 'Off'
+bool fm_lbl_chart = fm_lbl_where == 'Chart' or fm_lbl_where == 'Both'
+bool fm_lbl_pane = fm_lbl_where == 'Pane' or fm_lbl_where == 'Both'
+fm_lbl_c1 = input.bool(true, 'C1', inline = 'CLBL', group = gFMLv, active = cisd_show and fm_lbl_show, tooltip = 'C1 shows in the HTF1 pane only (step 67: never on the chart).')
+fm_lbl_c2 = input.bool(true, 'C2', inline = 'CLBL', group = gFMLv, active = cisd_show and fm_lbl_show)
+fm_lbl_c3 = false  // [Mark II C1-C2] fixed (input removed)
+fm_lbl_c4 = false  // [Mark II C1-C2] fixed (input removed)
+fm_lbl_size_input = input.string('Tiny', 'Size', options = ['Tiny', 'Small', 'Normal'], inline = 'CLBL2', group = gFMLv, active = cisd_show and fm_lbl_show)
+fm_lbl_size = fm_lbl_size_input == 'Normal' ? size.normal : fm_lbl_size_input == 'Small' ? size.small : size.tiny
+fm_lbl_valid = input.color(#000000, 'Valid', inline = 'CLBL2', group = gFMLv, active = cisd_show and fm_lbl_show)
+fm_lbl_invalid = input.color(#F23645, 'Invalid', inline = 'CLBL2', group = gFMLv, active = cisd_show and fm_lbl_show)
+fm_eq_show = input.bool(true, 'Previous EQ', inline = 'PEQ', group = gFMLv, active = cisd_show, tooltip = 'EQ of the previous candle, for the valid setups that use a Display Cap slot with a triggered CISD: C2 EQ across C3, C3 mid across C4. C2 EQ (step 51): sweep wick bigger than the body -> middle of the sweep wick (low to the lower body edge for bullish, high to the upper body edge for bearish), otherwise (high + low) / 2. C3 and the running-candle EQ always use (high + low) / 2. The HTF2 pane also shows the C2 EQ across the running C3 of its newest swing (Draw On Both / HTF Pane). On the running candle the line already reaches its end (the next vertical line). On xC4 (C4 beyond the C3 extreme) the C3 mid stops at that bar in the Invalid C-Label colour. None for void / xC2 setups. The mid of the previous HTF1 candle is also drawn across the running HTF1 candle, with or without a setup. HTF1 pane: from the wick of the previous candle to the end of the candle + 2 bars.')
+fm_eq_color = input.color(color.new(#000000, 0), '', inline = 'PEQ', group = gFMLv, active = cisd_show and fm_eq_show)
+fm_eq_style_input = input.string('Dotted', '', options = ['Solid', 'Dashed', 'Dotted'], inline = 'PEQ', group = gFMLv, active = cisd_show and fm_eq_show)
+fm_eq_style = fm_eq_style_input == 'Solid' ? line.style_solid : fm_eq_style_input == 'Dashed' ? line.style_dashed : line.style_dotted
+fm_eq_width = input.int(1, 'Width', options = [1, 2, 3, 4], inline = 'PEQ', group = gFMLv, active = cisd_show and fm_eq_show)
+fm_eq_where = input.string('Both', 'Previous EQ: Draw On', options = ['Chart', 'Pane', 'Both'], group = gFMLv, active = cisd_show and fm_eq_show, tooltip = 'Chart: Previous EQ on the price chart. Pane: on the HTF1 pane candles (when the pane is shown). Both: chart + pane.')
+xeq_show = input.bool(true, 'Expansion EQ (HTF1 Pane)', inline = 'XEQ', group = gFMLv, tooltip = 'Mark II z. EQ (high + low) / 2 of the newest expansion candle in the HTF1 pane: body at least half of its range and a close beyond the previous candle (bullish: above its high, bearish: below its low). Same look as Previous EQ (its colour, style, width): from its wick to the end of the next candle + 2 bars, no label. Removed once a later closed candle closes beyond it (continuation failed: Mang Bob / Gareth 50% rule). Not drawn when it is the previous candle (Previous EQ already shows it).')
+fm_ez_show = input.bool(true, 'Entry Zone (T-Spot)', inline = 'EZ', group = gFMLv, active = cisd_show, tooltip = 'FM T-Spot for C3 and C4 of the valid setups that use a Display Cap slot (none for void / xC2). EQ zone = candle open <-> EQ (C3: the C2 EQ, step 51 = middle of the sweep wick when the wick is bigger than the body, else the full C2 range; C4: the full C3 range); valid only when the EQ is below the open (bullish) / above it (bearish). CISD zone = CISD level <-> CISD 50% (mid of the bodies from the CISD candle to the C2 extreme). Overlap -> from the open to the far edge of the overlap, else the EQ zone. Grows with the running candle, stops at its end; the C4 box is removed on xC4.')
+fm_ez_bull = input.color(color.new(color.rgb(41, 98, 255), 96), 'Bullish', inline = 'EZ', group = gFMLv, active = cisd_show and fm_ez_show)
+fm_ez_bear = input.color(color.new(color.rgb(242, 54, 69), 96), 'Bearish', inline = 'EZ', group = gFMLv, active = cisd_show and fm_ez_show)
+fm_ic_show = input.bool(true, 'IC-CISD', inline = 'IC', group = gFMLv, active = cisd_show, tooltip = 'FM IC-CISD: same-side CISDs after the main CISD body break, through the end of C4 (stops on xC2, void, xC4). Starts on the next opposite candle (level = its open, re-traced on every new extreme like the main CISD); confirmed by a close through the level after the extreme bar when a 3-candle swing exists in that run. Line from the start candle to the confirm bar (CISD colours / width), dot on the swing. Grey once a wick trades beyond the dot. Drawn for the setups whose CISD is shown. A new IC-CISD after a T-Spot touch makes that T-Spot CONFIRMED.')
+fm_ic_dot_input = input.string('Tiny', 'Dot', options = ['Tiny', 'Small', 'Normal', 'Large'], inline = 'IC', group = gFMLv, active = cisd_show and fm_ic_show)
+fm_ic_dot = fm_ic_dot_input == 'Small' ? size.small : fm_ic_dot_input == 'Normal' ? size.normal : fm_ic_dot_input == 'Large' ? size.large : size.tiny
+
+// 4. PENANDA WAKTU
+vl_show = input.bool(true, 'Vertical Lines', inline = 'VL', group = gTM, tooltip = 'Vertical line at the open of the last HTF1 candles, from the lowest low to the highest high of those candles. Text above: weekday for Daily and higher with the regular open, otherwise the open time HH:mm (New York), also for the 18:00 Custom Daily Open. ▾ marks the C2 open of the setups that use a Display Cap slot. The text sits just above that high; Text Offset raises it by average bars (14-bar mean high-low range).')
+vl_color = input.color(color.new(#000000, 71), '', inline = 'VL', group = gTM, active = vl_show)
+vl_count = input.int(6, 'Count', minval = 1, maxval = 50, inline = 'VL', group = gTM, active = vl_show)
+vl_size_input = input.string('Small', 'Text Size', options = ['Tiny', 'Small', 'Normal'], group = gTM, active = vl_show)
+vl_size = vl_size_input == 'Normal' ? size.normal : vl_size_input == 'Tiny' ? size.tiny : size.small
+vl_txt_color = input.color(#000000, 'Text', inline = 'VLT', group = gTM, active = vl_show)
+vl_txt_off = input.float(0.5, 'Text Offset (bars)', options = [0.0, 0.5, 1.0, 2.0], inline = 'VLT', group = gTM, active = vl_show)
+vl_gap = input.int(6, 'Min Label Gap (bars)', minval = 0, maxval = 200, group = gTM, active = vl_show, tooltip = 'Step 66: a time label closer than this many bars to the last label shown is skipped (its line stays); the newest label and a C2 open (▾) always show. 0 = every label.')
+ho_show = input.bool(true, 'HTF Open', inline = 'HO', group = gTM, tooltip = 'Horizontal line at the open of the running HTF1 candle, from its first bar on the chart to that candle in the HTF1 pane (to the last bar + 1 when the pane is hidden). Step 45 (restored).')
+ho_color = input.color(color.new(#9598A1, 0), '', inline = 'HO', group = gTM, active = ho_show)
+ho_style_input = input.string('Solid', '', options = ['Solid', 'Dashed', 'Dotted'], inline = 'HO', group = gTM, active = ho_show)
+ho_style = ho_style_input == 'Dashed' ? line.style_dashed : ho_style_input == 'Dotted' ? line.style_dotted : line.style_solid
+ho_width = input.int(1, 'Width', options = [1, 2, 3], inline = 'HO', group = gTM, active = ho_show)
+ol_show = input.bool(true, 'Open Lines', inline = 'OL', group = gTM, tooltip = 'Horizontal line at the open of the last Count candles of Open TF (4H = 18 / 22 / 02 / 06 / 10 / 14 New York for gold and futures; HTF1 = the FM model timeframe). The running candle: solid to the last bar, label = its open time. Older opens: dotted and fainter, each stops at the end of the next candle so it does not run over current price. Replaces HTF Open (step 36).')
+ol_color = input.color(color.new(#9598A1, 0), '', inline = 'OL', group = gTM, active = ol_show)
+ol_tf = input.string('4H', 'Open TF', options = ['4H', 'HTF1'], inline = 'OL', group = gTM, active = ol_show)
+ol_count = input.int(3, 'Count', minval = 1, maxval = 4, inline = 'OL2', group = gTM, active = ol_show)
+ol_width = input.int(1, 'Width', options = [1, 2, 3], inline = 'OL2', group = gTM, active = ol_show)
+dw_d_show = input.bool(false, 'Daily Open', inline = 'DW', group = gTM, tooltip = 'Dashed line at the open of the New York trading day (18:00 NY, forex 17:00; crypto = the 1D candle) and of the week (the first trading day of the week, Sunday evening NY), from its first bar to the last bar, labels D Open / W Open (step 37).')
+dw_w_show = input.bool(false, 'Weekly Open', inline = 'DW', group = gTM)
+dw_color = input.color(color.new(#787b86, 0), '', inline = 'DW', group = gTM, active = dw_d_show or dw_w_show)
+
+// 5. TAMPILAN PANEL HTF
+global_mono_font = input.bool(true, 'Monospaced Font', group = gHTFSetings)
+global_font_family = global_mono_font ? font.family_monospace : font.family_default
+global_text_color = input.color(#636363, 'Global Text Color', inline='gtxt', group = gHTFSetings)
+
+bull_color = input.color(#ffffff, 'Body  ', inline = 'body', group = gHTFSetings)
+bear_color = input.color(#4a4a4a, '', inline = 'body', group = gHTFSetings)
+bull_border_color = input.color(#9c9c9c, 'Border ', inline = 'border', group = gHTFSetings)
+bear_border_color = input.color(#4a4a4a, '', inline = 'border', group = gHTFSetings)
+bull_wick_color = input.color(#bebfc3, 'Wick  ', inline = 'wick', group = gHTFSetings)
+bear_wick_color = input.color(#bebfc3, '', inline = 'wick', group = gHTFSetings)
+
+htf_sweeps_offset = input.int(25, 'Distance from Candles      ', group = gHTFSetings, minval = 1)
+htf_sweeps_distance_between = input.int(10, 'Distance Between HTFs      ', group = gHTFSetings, minval = 2)
+htf_candle_width_input = input.int(1, 'Candles Width          ', group = gHTFSetings, minval = 1, maxval = 5)
+htf_candle_width = QTU.htfCandleWidth(htf_candle_width_input)
+
+htf_label_show = input.bool(true, 'HTF Label', inline = 'htflbl', group = gHTFSetings)
+htf_timer_show = input.bool(true, 'Remaining Time', inline = 'htflbl', group = gHTFSetings)
+htf_timer_color = input.color(#b8b8b8, '', inline = 'htflbl', group = gHTFSetings)
+htf_label_position = input.string('Top', 'Label Position', options = ['Both', 'Top', 'Bottom'],  inline='lblpos', group = gHTFSetings)
+htf_label_alignment = input.string('Follow Candles', ' ', options = ['Align', 'Follow Candles'], inline='lblpos', group = gHTFSetings)
+h2t_show = input.bool(true, 'HTF2 Open Time (4H / 6H)', group = gHTFSetings, tooltip = 'Mark II ag. New York open time under the HTF2 pane candles when HTF2 is 4H or 6H, written in one row under the lowest low of the pane. 7H always shows its times (18:00 / 01:00 / 08:00, none on the short 15:00 candle).')
+htf_fvg_show = input.bool(true, 'Pane FVG', inline = 'htffvg', group = gHTFSetings, tooltip = 'FVG on the HTF1 / HTF2 pane candles (GG rules). Bullish: low of the 3rd candle above the high of the 1st; bearish: high of the 3rd below the low of the 1st. Only once the 3rd candle has closed (no repaint), consecutive candles only (no gap over a session break). Box over the three candles (left edge of the 1st to right edge of the 3rd), between the 1st and 3rd candle, behind the candles. Pane only.')
+htf_bull_fvg_color = input.color(color.new(#2962ff, 94), '', inline = 'htffvg', group = gHTFSetings, active = htf_fvg_show)
+htf_bear_fvg_color = input.color(color.new(#000000, 94), '', inline = 'htffvg', group = gHTFSetings, active = htf_fvg_show)
+
+pane_last_show = input.bool(false, 'Last Candle High / Low (Pane)', group = gHTFSetings, tooltip = 'Step 52 / 52c (own toggle since step 58, was under Pane Sweep): the high and low of the last closed candle in the HTF1 and HTF2 panes, from its wick to the running candle + 2 bars, solid, Sweep Line colour.')
+key_levels_show = input.bool(true, 'Key Levels', inline = 'KL', group = gHTFSetings, tooltip = 'Mark II aa (from Mark I). Highest high (-TF) and lowest low (+TF) of the candles in the highest shown pane (HTF2 when it is shown and higher than HTF1, otherwise HTF1), running candle included. Chart: from the bar of that high / low to 10 bars past the last bar, label = pane timeframe. Replaces Pairing Range (2D).')
+key_levels_line_color = input.color(#000000, '', inline = 'KL', group = gHTFSetings, active = key_levels_show)
+key_levels_line_style_input = input.string('Dotted', '', options = ['Solid', 'Dashed', 'Dotted'], inline = 'KL', group = gHTFSetings, active = key_levels_show)
+key_levels_line_style = key_levels_line_style_input == 'Dashed' ? line.style_dashed : key_levels_line_style_input == 'Dotted' ? line.style_dotted : line.style_solid
+
+// 5.1 HTF3 (DAILY / WEEKLY)  [Mark II af]
+h3_show = false  // [Mark II C1-C2] fixed (input removed)
+h3_tf_in = 'Daily'  // [Mark II C1-C2] fixed (input removed)
+h3_count = 1  // [Mark II C1-C2] fixed (input removed)
+h3_ln_show = false  // [Mark II C1-C2] fixed (input removed)
+h3_ln_col = color.new(#000000, 40)  // [Mark II C1-C2] fixed (input removed)
+h3_ln_style_in = 'Dotted'  // [Mark II C1-C2] fixed (input removed)
+h3_px_show = false  // [Mark II C1-C2] fixed (input removed)
+h3_px_col = #000000  // [Mark II C1-C2] fixed (input removed)
+h3_px_size_in = 'Small'  // [Mark II C1-C2] fixed (input removed)
+h3_eq_show = false  // [Mark II C1-C2] fixed (input removed)
+h3_eq_bull = #089981  // [Mark II C1-C2] fixed (input removed)
+h3_eq_bear = #F23645  // [Mark II C1-C2] fixed (input removed)
+h3_pd_show = false  // [Mark II C1-C2] fixed (input removed)
+h3_pd_col = #ff9800  // [Mark II C1-C2] fixed (input removed)
+h3_pd_sets = 2  // [Mark II C1-C2] fixed (input removed)
+h3_pd_un_in = 'Solid'  // [Mark II C1-C2] fixed (input removed)
+h3_pd_sw_in = 'Dashed'  // [Mark II C1-C2] fixed (input removed)
+h3_pd_swl = false  // [Mark II C1-C2] fixed (input removed)
+h3_ph_show = false  // [Mark II C1-C2] fixed (input removed)
+h3_ph_col = color.new(#000000, 20)  // [Mark II C1-C2] fixed (input removed)
+h3_ph_size_in = 'Tiny'  // [Mark II C1-C2] fixed (input removed)
+h3_ph_pos = 'Below'  // [Mark II C1-C2] fixed (input removed)
+h3_ln_st = h3_ln_style_in == 'Solid' ? line.style_solid : h3_ln_style_in == 'Dashed' ? line.style_dashed : line.style_dotted
+h3_pd_un_st = h3_pd_un_in == 'Dashed' ? line.style_dashed : h3_pd_un_in == 'Dotted' ? line.style_dotted : line.style_solid
+h3_pd_sw_st = h3_pd_sw_in == 'Dashed' ? line.style_dashed : h3_pd_sw_in == 'Dotted' ? line.style_dotted : line.style_solid
+h3_px_size = h3_px_size_in == 'Normal' ? size.normal : h3_px_size_in == 'Tiny' ? size.tiny : size.small
+h3_ph_size = h3_ph_size_in == 'Normal' ? size.normal : h3_ph_size_in == 'Small' ? size.small : size.tiny
+int h3_total = h3_count + 5  // candle yang disimpan: yang tampil + histori untuk EQ previous / ekspansi
+
+// 6. SMT / PSP
+// [Step 11] SMT
+smt_where = 'Off'  // [Mark II C1-C2] fixed (input removed)
+bool smt_show_input = smt_where != 'Off'
+bool smt_chart = smt_where == 'Chart' or smt_where == 'Both'
+bool smt_pane = smt_where == 'Pane' or smt_where == 'Both'
+smt_label_where = 'Off'  // [Mark II C1-C2] fixed (input removed)
+bool smt_label_show_input = smt_label_where != 'Off'
+bool smt_lbl_chart = smt_label_where == 'Chart' or smt_label_where == 'Both'
+bool smt_lbl_pane = smt_label_where == 'Pane' or smt_label_where == 'Both'
+smt_label_size_input = 'Tiny'  // [Mark II C1-C2] fixed (input removed)
+smt_color_input = #9e9e9e  // [Mark II C1-C2] fixed (input removed)
+smt_pane_color_input = #fbc02d  // [Mark II C1-C2] fixed (input removed)
+smt_line_style_input = 'Solid'  // [Mark II C1-C2] fixed (input removed)
+smt_line_width_input = 1  // [Mark II C1-C2] fixed (input removed)
+bool hc_show = smt_pane  // [Mark II j] HTF Candle SMT mengikuti SMT = Pane / Both
+hc_mode = 'Confirmed'  // [Mark II C1-C2] fixed (input removed)
+hc_look = 1  // [Mark II C1-C2] fixed (input removed)
+hc_cap = 5  // [Mark II C1-C2] fixed (input removed)
+h2c_show = false  // [Mark II C1-C2] fixed (input removed)
+fg_show = false  // [Mark II C1-C2] fixed (input removed)
+fg_col = #000000  // [Mark II C1-C2] fixed (input removed)
+fg_style_in = 'Dotted'  // [Mark II C1-C2] fixed (input removed)
+fg_width = 1  // [Mark II C1-C2] fixed (input removed)
+fg_style = fg_style_in == 'Solid' ? line.style_solid : fg_style_in == 'Dashed' ? line.style_dashed : line.style_dotted
+// [Step 14] PSP
+psp_show = false  // [Mark II C1-C2] fixed (input removed)
+psp_mode = 'Confirmed'  // [Mark II C1-C2] fixed (input removed)
+psp_live_col = #fbc02d  // [Mark II C1-C2] fixed (input removed)
+psp_tag = false  // [Mark II C1-C2] fixed (input removed)
+psp_proj = false  // [Mark II C1-C2] fixed (input removed)
+h2_smt_show = false  // [Mark II C1-C2] fixed (input removed)
+psp_size_in = 'Tiny'  // [Mark II C1-C2] fixed (input removed)
+psp_color = color.rgb(0, 0, 0)  // [Mark II C1-C2] fixed (input removed)
+psp_dir_on = false  // [Mark II C1-C2] fixed (input removed)
+psp_bull_col = #2962ff  // [Mark II C1-C2] fixed (input removed)
+psp_bear_col = #cd0030  // [Mark II C1-C2] fixed (input removed)
+tag2s_show = false  // [Mark II C1-C2] fixed (input removed)
+ss_show = false  // [Mark II C1-C2] fixed (input removed)
+ss_look = 6  // [Mark II C1-C2] fixed (input removed)
+ss_col = #f48fb1  // [Mark II C1-C2] fixed (input removed)
+smt_mode_input = 'Manual'  // [Mark II C1-C2] fixed (input removed)
+smt_sym1_manual_input = ''  // [Mark II C1-C2] fixed (input removed)
+smt_sym1_inverse_input = false  // [Mark II C1-C2] fixed (input removed)
+smt_sym2_enable_input = false  // [Mark II C1-C2] fixed (input removed)
+smt_sym2_manual_input = ''  // [Mark II C1-C2] fixed (input removed)
+smt_sym2_inverse_input = false  // [Mark II C1-C2] fixed (input removed)
+smt_src_in = 'HTF1'  // [Mark II C1-C2] fixed (input removed)
+smt_dxy_triad_input = 'EURUSD + GBPUSD'  // [Mark II C1-C2] fixed (input removed)
+// [Mark II j] simbol 3 tetap off (tanpa request)
+bool smt_sym3_enable_input = false
+string smt_sym3_manual_input = ''
+bool smt_sym3_inverse_input = false
+psp_size = psp_size_in == 'Tiny' ? size.tiny : psp_size_in == 'Normal' ? size.normal : psp_size_in == 'Large' ? size.large : size.small
+
+// 8. STATUS BAR
+// [Step 21] Status Bar
+sb_show = false  // [Mark II C1-C2] fixed (input removed)
+sb_pos_in = 'Bottom Right'  // [Mark II C1-C2] fixed (input removed)
+sb_sym = false  // [Mark II C1-C2] fixed (input removed)
+sb_model = false  // [Mark II C1-C2] fixed (input removed)
+sb_size_in = 'Small'  // [Mark II C1-C2] fixed (input removed)
+sb_col = #000000  // [Mark II C1-C2] fixed (input removed)
+sb_size = sb_size_in == 'Tiny' ? size.tiny : sb_size_in == 'Normal' ? size.normal : size.small
+sb_pos = switch sb_pos_in
+    'Top Left' => position.top_left
+    'Top Center' => position.top_center
+    'Top Right' => position.top_right
+    'Bottom Left' => position.bottom_left
+    'Bottom Right' => position.bottom_right
+    => position.bottom_center
+
+// 9. SESSION LEVELS  [Mark II s]
+sl_show = false  // [Mark II C1-C2] fixed (input removed)
+sl_tz_in = 'America/New_York'  // [Mark II C1-C2] fixed (input removed)
+sl_as_on = false  // [Mark II C1-C2] fixed (input removed)
+sl_as = '2000-0000'  // [Mark II C1-C2] fixed (input removed)
+sl_lo_on = false  // [Mark II C1-C2] fixed (input removed)
+sl_lo = '0200-0500'  // [Mark II C1-C2] fixed (input removed)
+sl_am_on = false  // [Mark II C1-C2] fixed (input removed)
+sl_am = '0700-1000'  // [Mark II C1-C2] fixed (input removed)
+sl_pm_on = false  // [Mark II C1-C2] fixed (input removed)
+sl_pm = '1300-1700'  // [Mark II C1-C2] fixed (input removed)
+sl_ln_col = #888888  // [Mark II C1-C2] fixed (input removed)
+sl_lb_col = #000000  // [Mark II C1-C2] fixed (input removed)
+sl_width = 1  // [Mark II C1-C2] fixed (input removed)
+sl_un_in = 'Solid'  // [Mark II C1-C2] fixed (input removed)
+sl_sw_in = 'Dashed'  // [Mark II C1-C2] fixed (input removed)
+sl_sw_lbl = false  // [Mark II C1-C2] fixed (input removed)
+sl_un_st = sl_un_in == 'Solid' ? line.style_solid : sl_un_in == 'Dashed' ? line.style_dashed : line.style_dotted
+sl_sw_st = sl_sw_in == 'Solid' ? line.style_solid : sl_sw_in == 'Dashed' ? line.style_dashed : line.style_dotted
+sl_tz = sl_tz_in == 'Exchange' ? syminfo.timezone : sl_tz_in
+
+// 10. PERFORMA
+max_calc_bars = input.int(1000, 'Calculated Bars', minval = 100, maxval = 5000, group = gPerformance)
+const int perf_htf_runtime_bars = 5000
+
+//==============================================================================
+// Candle HTF, sweep, label, dan penggambaran panel
+//==============================================================================
+
+type UDT_Store
+	array<line> bin_ln
+	array<box> bin_box
+	array<label> bin_lbl
+type UDT_HTF_Candle
+	string tf
+	float o
+	float c
+	float h
+	float l
+	int o_idx
+	int c_idx
+	int h_idx
+	int l_idx
+	int ot
+	int ct
+	int candle_left
+	int candle_rigth
+	float candle_top
+	float candle_bottom
+	int wick_x
+	int shift
+	bool is_closed
+	bool bull
+const string HTF_CUSTOM_DAILY_TZ = 'America/New_York'
+htf_daily_1800_time = time(timeframe.period, '1800-1801:1234567', HTF_CUSTOM_DAILY_TZ)
+htf_daily_midnight_begins = dayofweek(time, HTF_CUSTOM_DAILY_TZ) != dayofweek(time[1], HTF_CUSTOM_DAILY_TZ)
+htf_daily_1800_begins = not na(htf_daily_1800_time) and na(htf_daily_1800_time[1])
+htf_custom_daily_begin = htf_custom_daily_time == '18:00' ? htf_daily_1800_begins : htf_daily_midnight_begins
+var bin = UDT_Store.new(bin_ln = array.new<line>(), bin_box = array.new<box>(), bin_lbl = array.new<label>())
+var htf_1_candles = array.new<UDT_HTF_Candle>()
+var htf_2_candles = array.new<UDT_HTF_Candle>()
+var htf_3_candles = array.new<UDT_HTF_Candle>()  // [Mark II af]
+method clean_bin(UDT_Store store) =>
+    for obj in store.bin_ln
+        obj.delete()
+    for obj in store.bin_box
+        obj.delete()
+    for obj in store.bin_lbl
+        obj.delete()
+    store.bin_ln.clear()
+    store.bin_box.clear()
+    store.bin_lbl.clear()
+
+
+type HtfPaneCfg
+    bool show
+    bool candle_show
+    string tf
+    bool htf_show
+    int pane = 0  // [Step 59] 1 = HTF1, 2 = HTF2
+f_idx_ln(int x1, float y1, int x2, float y2, color clr, st) =>
+    ln = line.new(x1=x1, y1=y1, x2=x2, y2=y2, xloc=xloc.bar_index, color=clr, style=st, width=1)
+    bin.bin_ln.push(ln)
+    ln
+f_idx_box(int l, float t, int r, float b, color bc, color bg) =>
+    bin.bin_box.push(box.new(left=l, top=t, right=r, bottom=b, xloc=xloc.bar_index, border_color=bc, border_width=1, bgcolor=bg))
+    0
+method add_htf_candle(array<UDT_HTF_Candle> htf_candles, UDT_HTF_Candle candle, int total_candles_number) =>
+    if not na(candle)
+        htf_candles.unshift(candle)
+    while htf_candles.size() > total_candles_number
+        htf_candles.pop()
+    htf_candles
+method detect_htf_candle(array<UDT_HTF_Candle> htf_candles, bool enabled, string tf) =>
+    UDT_HTF_Candle htf_candle = na
+    tfTime = time(tf)
+    regular_begins = ta.change(tfTime) != 0
+    custom_daily = htf_custom_daily_open and tf_sec <= TF_SEC_60 and QTU.isDailyTf(tf)
+    tf_session_begins = custom_daily ? htf_custom_daily_begin : regular_begins
+    if enabled
+        if tf_session_begins or htf_candles.size() == 0
+            candle = UDT_HTF_Candle.new(tf=tf)
+            candle.o := open
+            candle.c := close
+            candle.h := high
+            candle.l := low
+            candle.o_idx := bar_index
+            candle.c_idx := bar_index
+            candle.h_idx := bar_index
+            candle.l_idx := bar_index
+            candle.ot := time
+            candle.bull := QTU.isBullishCandle(candle.c, candle.o, candle.h, candle.l)
+            if htf_candles.size() > 0
+                last_candle = htf_candles.get(0)
+                last_candle.is_closed := true
+                last_candle.ct := time
+                last_candle.ct
+            htf_candle := candle
+            htf_candle
+        else if htf_candles.size() > 0
+            candle = htf_candles.first()
+            candle.c := close
+            candle.c_idx := bar_index
+            candle.ct := time
+            if high > candle.h
+                candle.h := high
+                candle.h_idx := bar_index
+                candle.h_idx
+            if low < candle.l
+                candle.l := low
+                candle.l_idx := bar_index
+                candle.l_idx
+            candle.bull := QTU.isBullishCandle(candle.c, candle.o, candle.h, candle.l)
+            candle.bull
+    htf_candle
+method position_htf_candle(UDT_HTF_Candle candle, int candle_index, int offset, int buffer, int width, int candles_amount) =>
+    w = math.max(2, width)
+    candle.shift := QTU.htfCandleShift(candle_index, offset, buffer, w, candles_amount)
+    candle.candle_left := bar_index + candle.shift
+    candle.candle_rigth := candle.candle_left + w
+    candle.candle_top := math.max(candle.o, candle.c)
+    candle.candle_bottom := math.min(candle.o, candle.c)
+    candle.wick_x := QTU.htfWickX(candle.candle_left, w)
+    candle
+method position_htf_candles(array<UDT_HTF_Candle> htf_candles, int shift) =>
+    candles_amount = htf_candles.size()
+    for [index, candle] in htf_candles
+        candle.position_htf_candle(index, shift, 1, htf_candle_width, candles_amount)
+method draw_htf_candle(UDT_HTF_Candle candle) =>
+    color candle_color = candle.bull ? bull_color : bear_color
+    color border_color = candle.bull ? bull_border_color : bear_border_color
+    color wick_color = candle.bull ? bull_wick_color : bear_wick_color
+    f_idx_box(candle.candle_left, candle.candle_top, candle.candle_rigth, candle.candle_bottom, border_color, candle_color)
+    f_idx_ln(candle.wick_x, candle.h, candle.wick_x, candle.candle_top, wick_color, line.style_solid)
+    f_idx_ln(candle.wick_x, candle.candle_bottom, candle.wick_x, candle.l, wick_color, line.style_solid)
+    candle
+f_htf_label_bounds(array<UDT_HTF_Candle> htf_candles, bool enabled, float base_top, float base_bottom) =>
+    y_top = base_top
+    y_bottom = base_bottom
+    if enabled
+        for candle in htf_candles
+            y_top := na(y_top) ? candle.h : math.max(y_top, candle.h)
+            y_bottom := na(y_bottom) ? candle.l : math.min(y_bottom, candle.l)
+    [y_top, y_bottom]
+f_push_htf_lbl(int x, float y, string txt, st, color clr, string sz) =>
+    bin.bin_lbl.push(QTU.newBoldLabel(x, y, txt, st, clr, sz, global_font_family))
+    0
+method draw_htf_label(array<UDT_HTF_Candle> htf_candles, string tf, float shared_top, float shared_bottom, int close_t, color label_clr, bool src_lbl) =>
+    float y_top = na
+    float y_bottom = na
+    int x_min = na
+    int x_max = na
+    int cd_close = na
+    for [index, candle] in htf_candles
+        y_top := na(y_top) ? candle.h : math.max(y_top, candle.h)
+        y_bottom := na(y_bottom) ? candle.l : math.min(y_bottom, candle.l)
+        x_min := na(x_min) ? candle.wick_x : math.min(x_min, candle.wick_x)
+        x_max := na(x_max) ? candle.wick_x : math.max(x_max, candle.wick_x)
+        cd_close := index == 0 and htf_custom_daily_open and QTU.isDailyTf(tf) ? candle.ot + 86400000 : cd_close
+    x = not na(x_min) and not na(x_max) ? math.round(math.avg(x_min, x_max)) : na
+    top_y = htf_label_alignment == 'Align' and not na(shared_top) ? shared_top : y_top
+    bottom_y = htf_label_alignment == 'Align' and not na(shared_bottom) ? shared_bottom : y_bottom
+    pad = QTU.labelPad(top_y, bottom_y, syminfo.mintick)
+    top_y += pad
+    bottom_y -= pad
+    txt = f_htf_label(tf, src_lbl)
+    rem = QTU.remTime(na(cd_close) ? close_t : cd_close, timenow)
+    has_rem = str.length(rem) > 0
+    top_on = htf_label_position == 'Both' or htf_label_position == 'Top'
+    bottom_on = htf_label_position == 'Both' or htf_label_position == 'Bottom'
+    if top_on and not na(top_y) and not na(x)
+        if htf_label_show
+            f_push_htf_lbl(x, top_y, txt + (htf_timer_show and has_rem ? "\n" : ""), label.style_label_down, label_clr, size.small)
+        if htf_timer_show and has_rem
+            f_push_htf_lbl(x, top_y, rem, label.style_label_down, htf_timer_color, size.small)
+    if bottom_on and not na(bottom_y) and not na(x)
+        if htf_label_show
+            f_push_htf_lbl(x, bottom_y, (htf_timer_show and has_rem ? "\n" : "") + txt, label.style_label_up, label_clr, size.small)
+        if htf_timer_show and has_rem
+            f_push_htf_lbl(x, bottom_y, rem, label.style_label_up, htf_timer_color, size.small)
+    htf_candles
+f_fvg_triplet_ok(UDT_HTF_Candle c1, UDT_HTF_Candle c2, UDT_HTF_Candle c3, string tf_in, bool live3) =>
+    tf_seconds = f_htf_seconds(tf_in)
+    tf_ms = na(tf_seconds) ? na : tf_seconds * 1000
+    same_tf = c1.tf == tf_in and c2.tf == tf_in and c3.tf == tf_in
+    closed = c1.is_closed and c2.is_closed and (c3.is_closed or live3)  // [Step 28] live3 = candle ke-3 yang sedang berjalan
+    chronological = c1.o_idx < c2.o_idx and c2.o_idx < c3.o_idx and c1.ot < c2.ot and c2.ot < c3.ot
+    adjacent_bars = c2.o_idx - c1.c_idx <= 1 and c3.o_idx - c2.c_idx <= 1
+    no_time_void = na(tf_ms) ? true : c2.ot - c1.ot <= tf_ms * 2 and c3.ot - c2.ot <= tf_ms * 2
+    same_tf and closed and chronological and adjacent_bars and no_time_void
+var array<int> fg_used1 = array.new<int>()  // [Mark II l] o_idx dari candle ke-3 pada FVG panel HTF1 yang dipakai SMT Fill (kotak tidak digambar)
+method draw_htf_fvgs(array<UDT_HTF_Candle> htf_candles, HtfPaneCfg cfg) =>
+    if htf_fvg_show and cfg.htf_show and cfg.candle_show
+        int count = htf_candles.size()
+        if count > 2
+            for i = 0 to count - 3
+                UDT_HTF_Candle c3 = htf_candles.get(i)
+                UDT_HTF_Candle c2 = htf_candles.get(i + 1)
+                UDT_HTF_Candle c1 = htf_candles.get(i + 2)
+                bool valid = f_fvg_triplet_ok(c1, c2, c3, cfg.tf, i == 0) and not (cfg.pane == 1 and fg_used1.includes(c3.o_idx))
+                if valid and c3.l > c1.h
+                    f_idx_box(c1.candle_left, c3.l, c3.candle_rigth, c1.h, #FFFFFF00, htf_bull_fvg_color)
+                if valid and c3.h < c1.l
+                    f_idx_box(c1.candle_left, c1.l, c3.candle_rigth, c3.h, #FFFFFF00, htf_bear_fvg_color)
+    htf_candles
+method plot_htf(array<UDT_HTF_Candle> htf_candles, HtfPaneCfg cfg, float shared_label_top, float shared_label_bottom, int close_t, color label_clr, bool src_lbl) =>
+    htf_candles.draw_htf_fvgs(cfg)  // [Step 10] di belakang candle
+    for candle in htf_candles
+        if cfg.htf_show and cfg.candle_show
+            candle.draw_htf_candle()
+    if (htf_label_show or htf_timer_show) and cfg.htf_show
+        htf_candles.draw_htf_label(cfg.tf, shared_label_top, shared_label_bottom, close_t, label_clr, src_lbl)
+    htf_candles
+f_htf_next_offset(array<UDT_HTF_Candle> _candles, int _offset) =>
+    _next = _offset
+    int _rightmost = na
+    for candle in _candles
+        if na(_rightmost) or candle.candle_rigth > _rightmost
+            _rightmost := candle.candle_rigth
+    if not na(_rightmost)
+        _next := _rightmost - bar_index + htf_sweeps_distance_between
+    _next
+f_run_htf_pane(array<UDT_HTF_Candle> _candles, HtfPaneCfg _cfg, int _offset, float _shared_label_top, float _shared_label_bottom, int _close_t, color _label_clr, bool _src_lbl) =>
+    _next_offset = _offset
+    if _cfg.show
+        _candles.position_htf_candles(_offset)
+        _candles.plot_htf(_cfg, _shared_label_top, _shared_label_bottom, _close_t, _label_clr, _src_lbl)
+        if _cfg.candle_show
+            _next_offset := f_htf_next_offset(_candles, _offset)
+    _next_offset
+f_htf_cfg(_pane, _tf) =>
+    _sec = f_htf_seconds(_tf)
+    _sync_off = _tf == ''
+    _show_input = _pane == 1 ? htf_sweeps_tf_1_show : _pane == 2 ? htf_sweeps_tf_2_show : h3_show
+    _show = _show_input and not _sync_off and not na(_sec) and tf_sec < _sec
+    _candle_show = _show
+    HtfPaneCfg.new(_show, _candle_show, _tf, true, _pane)
+f_update_htf_pane(array<UDT_HTF_Candle> candles, HtfPaneCfg cfg, int count, bool perf_on, bool cisd_internal) =>
+    need_visual_htf = perf_on and (cfg.show or cfg.candle_show)
+    need_cisd_htf = cisd_internal
+    need_htf = need_visual_htf or need_cisd_htf
+    if need_htf
+        c = candles.detect_htf_candle(true, cfg.tf)
+        is_new = not na(c)
+        if is_new
+            candles.add_htf_candle(c, count)
+    candles
+// [FM step 2] Pairing HTF1 (FM 'Fractal'). Automatic memetakan timeframe chart; pasangan tetap mengembalikan HTF-nya.
+f_fm_auto_htf() =>  // [Step 54] hanya pasangan material
+    tf_sec == 180 ? '30' : tf_sec == 300 ? '60' : tf_sec == 900 ? '60' : tf_sec == 1800 ? '240' : tf_sec == 3600 ? '240' : tf_sec == TF_SEC_240 ? 'D' : tf_sec == TF_SEC_D ? 'W' : ''
+// [Mark II] Pairing sistem FM: 1m→15m, 3m→15m, 5m→1H, 15m→4H, 30m→4H, 1H→7H, D→W, M→3M
+f_fm_sys_htf() =>
+    tf_sec == 60 ? '15' : tf_sec == 180 ? '15' : tf_sec == 300 ? '60' : tf_sec == 900 ? '240' : tf_sec == 1800 ? '240' : tf_sec == 3600 ? TF_7H : tf_sec == TF_SEC_D ? 'W' : tf_sec == TF_SEC_M ? '3M' : ''
+f_fm_htf1() =>
+    switch htf1_fractal_input
+        'Automatic' => f_fm_auto_htf()
+        'FM' => f_fm_sys_htf()
+        'Custom' => QTU.actualTf(htf_sweeps_tf_1_custom_tf)
+        '3m-30m' => '30'
+        '5m-1H' => '60'
+        '15m-1H' => '60'
+        '30m-4H' => '240'
+        '1H-4H' => '240'
+        '1H-7H' => TF_7H
+        '4H-1D' => 'D'
+        '1D-1W' => 'W'
+        => f_fm_auto_htf()
+var string actual_tf_1 = f_fm_htf1()
+// HTF2: timeframe sendiri, tampil apa pun HTF1-nya (hanya timeframe chart yang harus di bawahnya)
+var string htf2_tf_sel = htf_sweeps_tf_2_custom_tf == '7h' ? TF_7H : QTU.actualTf(htf_sweeps_tf_2_custom_tf)
+var string actual_tf_2 = htf2_tf_sel
+var HtfPaneCfg htf1_cfg = f_htf_cfg(1, actual_tf_1)
+var HtfPaneCfg htf2_cfg = f_htf_cfg(2, actual_tf_2)
+var string actual_tf_3 = h3_tf_in == 'Weekly' ? 'W' : 'D'  // [Mark II af]
+var HtfPaneCfg htf3_cfg = f_htf_cfg(3, actual_tf_3)
+
+// 7H: library tidak mengenal '420' -> jendela sendiri (cukup bar untuk candle panel, seperti GG)
+htf1_runtime_on = actual_tf_1 == TF_7H ? bar_index > last_bar_index - math.min(perf_htf_runtime_bars, math.max(max_calc_bars, int(math.ceil((htf_sweeps_tf_1_number + 1) * TF_7H_SEC / tf_sec)))) : QTU.htfRuntimeOn(actual_tf_1, htf_sweeps_tf_1_number, tf_sec, perf_htf_runtime_bars, max_calc_bars, bar_index, last_bar_index)
+htf2_runtime_on = actual_tf_2 == TF_7H ? bar_index > last_bar_index - math.min(perf_htf_runtime_bars, math.max(max_calc_bars, int(math.ceil((htf_sweeps_tf_2_number + 1) * TF_7H_SEC / tf_sec)))) : QTU.htfRuntimeOn(actual_tf_2, htf_sweeps_tf_2_number, tf_sec, perf_htf_runtime_bars, max_calc_bars, bar_index, last_bar_index)
+htf_1_candles := f_update_htf_pane(htf_1_candles, htf1_cfg, htf_sweeps_tf_1_number, htf1_runtime_on, false)
+htf_2_candles := f_update_htf_pane(htf_2_candles, htf2_cfg, htf_sweeps_tf_2_number, htf2_runtime_on, false)
+htf3_runtime_on = QTU.htfRuntimeOn(actual_tf_3, h3_total, tf_sec, perf_htf_runtime_bars, max_calc_bars, bar_index, last_bar_index)  // [Mark II af]
+htf_3_candles := f_update_htf_pane(htf_3_candles, htf3_cfg, h3_total, htf3_runtime_on, false)
+
+//==============================================================================
+// [FM] MESIN CISD (HTF1)
+// Aturan FM: C2 menyapu C1 dan close kembali ke dalam; level CISD = open dari rangkaian candle berlawanan yang ditelusuri mundur dari
+// extreme C2 (sampai 500 bar, doji dilewati); terpicu oleh close body menembus level, di C2 setelah sweep
+// kembali ke dalam, atau selama C3; tidak terpicu saat close C3 -> setup dibuang.
+// Aturan GG (hanya sampai C3 close; setelah itu CISD dibekukan):
+// 1) Sumber sweep mati: C3 close kembali melewati level C1 yang disapu -> setup void, CISD disembunyikan.
+// 2) Protected swing patah: wick C3 melewati extreme C2 -> xC2, CISD disembunyikan; setup baru dimulai dengan
+// C2 lama sebagai C1.
+// Berjalan di timeframe HTF1 meski panel HTF1 disembunyikan, di dalam jendela kerja (Calculated Bars).
+//==============================================================================
+type FmCandle
+    float o
+    float c
+    float h
+    float l
+    int o_idx
+    int h_idx
+    int l_idx
+
+// T-Spot (satu per zona entry: C3, C4)
+type FmTSpot
+    bool bull
+    float htf_open
+    float eq
+    float eq_top
+    float eq_bot
+    float cisd_open
+    float cisd50
+    float cisd_top
+    float cisd_bot
+    float top
+    float bot
+    bool overlap
+    int state = 0            // 0 = ACTIVE, 1 = TOUCHED, 2 = CONFIRMED (IC-CISD baru setelah sentuhan)
+    int ic_base = 0          // jumlah IC-CISD saat sentuhan
+
+// IC-CISD yang terkonfirmasi
+type FmIc
+    float level
+    int start_idx
+    int end_idx
+    float ext_px
+    int ext_idx
+    bool taken = false       // wick melewati swing -> abu-abu
+
+type FmSetup
+    bool is_bullish          // true = setup bullish (sweep low), false = bearish (sweep high)
+    bool is_confirmed        // C2 sudah kembali ke dalam level yang disapu
+    bool is_post_c2          // C2 sudah close, melacak C3
+    float sweep_price        // high / low C1 yang disapu
+    int sweep_bar_idx        // bar tempat sweep dimulai
+    int htf_candle_idx       // o_idx dari C2
+    int htf_count            // jumlah candle HTF sejak sweep
+    float c2_extreme         // high C2 (bearish) / low (bullish), ditetapkan saat C2 close = protected swing
+    float tracked_extreme    // extreme C2 yang sedang berjalan
+    int extreme_bar_idx
+    float cisd_level
+    int cisd_start_idx       // candle pertama dari rangkaian berlawanan (level = open-nya)
+    int cisd_series_end_idx  // candle terakhir dari rangkaian itu (terdekat dengan extreme)
+    int cisd_end_idx         // bar body-break; garis digambar sampai bar ini + 1
+    bool has_cisd
+    bool cisd_triggered
+    bool is_invalid          // xC2 (disimpan di histori untuk label C berikutnya, CISD tidak digambar)
+    bool is_void             // sumber sweep mati saat C3 close (disimpan agar memakai slot Display Cap-nya, CISD tidak digambar)
+    int swept_o_idx          // o_idx dari C1
+    int c1_idx               // bar dari high / low C1 yang disapu
+    int c3_o_idx             // o_idx dari C3 (bar pertama C3)
+    float c3_ext             // high C3 (bearish) / low (bullish) sejauh ini
+    int c3_ext_idx
+    int c4_o_idx             // o_idx dari C4 (na bila setup berakhir sebelum C4)
+    float c4_ext             // high C4 (bearish) / low (bullish) sejauh ini
+    int c4_ext_idx
+    bool c4_active           // C4 sedang berjalan (dilacak untuk label dan xC4)
+    bool c4_invalid          // xC4: C4 melewati extreme C3
+    float c2_mid             // EQ C2, ditetapkan saat C2 close (Previous EQ melintasi C3); [Step 51] wick > body -> tengah wick sweep
+    float c3_mid             // (high + low) / 2 dari C3, ditetapkan saat C3 close (Previous EQ melintasi C4)
+    int c4_end_x             // bar pertama setelah C4 (C4 berakhir normal)
+    int c4_inv_idx           // bar dari xC4
+    int c2_brk_idx           // [Mark II c] bar tempat sebuah wick kemudian mengambil extreme C2 (protected swing hilang)
+    float c2_open            // OHLC C2 saat close (EQ T-Spot C3)
+    float c2_close
+    float c2_h
+    float c2_l
+    float c3_open
+    FmTSpot ts3              // T-Spot C3 (na = tidak ada)
+    FmTSpot ts4              // T-Spot C4 (na = tidak ada)
+    array<FmIc> ic_list      // IC-CISD terkonfirmasi (na sampai yang pertama)
+    bool c3c = false         // [Step 42] C2 close melewati level yang disapu: menunggu close C3
+    bool c3c_ok = false      // [Step 42] penutupan C3 terkonfirmasi (trade C4)
+    float c3c_lvl            // [Step 42] level yang harus dilewati close C3
+    bool rs_ok = true        // [Step 19] extreme C2 sudah mengambil level (yang relevan) yang disapu
+    int rs_o_idx             // o_idx dari candle yang memegang level sapuan yang relevan (na = C1)
+    bool ic_active = false
+    bool ic_pending = false
+    float ic_level
+    int ic_start_idx
+    float ic_extreme
+    int ic_extreme_idx
+    bool smt1 = false        // SMT C1 -> C2
+    int smt1_x1
+    float smt1_y1
+    int smt1_x2
+    float smt1_y2
+    string smt1_sym = ''
+    bool smt2 = false        // SMT C2 -> C3
+    int smt2_x1
+    float smt2_y1
+    int smt2_x2
+    float smt2_y2
+    string smt2_sym = ''
+    float body_hi            // body / wick rangkaian berlawanan (sumber SD Projections)
+    float body_lo
+    float wick_hi
+    float wick_lo
+
+type FmSet
+    array<FmCandle> candles
+    array<FmSetup> setups    // setup yang selesai (dan xC2), terbaru di depan
+    FmSetup live_bearish
+    FmSetup live_bullish
+    bool has_live_bearish = false
+    bool has_live_bullish = false
+
+var FmSet fmset = FmSet.new(candles = array.new<FmCandle>(), setups = array.new<FmSetup>())
+var int fm_htf_sec = f_htf_seconds(actual_tf_1)
+bool fm_valid = actual_tf_1 != '' and not na(fm_htf_sec) and tf_sec < fm_htf_sec
+string fm_tf_safe = fm_valid ? actual_tf_1 : timeframe.period
+var bool fm_custom_daily = htf_custom_daily_open and tf_sec <= TF_SEC_60 and QTU.isDailyTf(actual_tf_1)
+// Batas candle HTF1 sama dengan panel Mark I (detect_htf_candle)
+bool fm_regular_begins = ta.change(time(fm_tf_safe)) != 0
+bool fm_new_htf = fm_valid and (fm_custom_daily ? htf_custom_daily_begin : fm_regular_begins)
+bool fm_in_win = bar_index >= last_bar_index - math.min(max_calc_bars, 4500)
+
+// Level CISD: telusuri mundur dari bar extreme lewat candle berlawanan berurutan (doji dilewati, sampai 500 bar).
+// bias: 1 = candle close naik (setup bearish), -1 = candle close turun (setup bullish).
+// Mengembalikan [level, candle pertama rangkaian, candle terakhir rangkaian].
+FindCISDLevel(int extreme_bar_idx, int bias) =>
+    int start_off = bar_index - extreme_bar_idx
+    float cisd_price = na
+    int cisd_idx = na
+    int series_end = na
+    bool found_first = false
+    for i = start_off to math.min(start_off + 500, bar_index)
+        int attitude = close[i] > open[i] ? 1 : close[i] < open[i] ? -1 : 0
+        if attitude == 0
+            continue
+        if not found_first
+            if attitude == bias
+                found_first := true
+                cisd_price := open[i]
+                cisd_idx := bar_index - i
+                series_end := bar_index - i
+        else
+            if attitude != bias
+                break
+            cisd_price := open[i]
+            cisd_idx := bar_index - i
+    [cisd_price, cisd_idx, series_end]
+
+FmSetLevel(FmSetup setup, int extreme_bar) =>
+    [lvl, lvl_idx, end_idx] = FindCISDLevel(extreme_bar, setup.is_bullish ? -1 : 1)
+    bool ok = not na(lvl)
+    if ok
+        setup.cisd_level := lvl
+        setup.cisd_start_idx := lvl_idx
+        setup.cisd_series_end_idx := end_idx
+        setup.has_cisd := true
+    ok
+
+// Body / wick rangkaian berlawanan, disimpan saat CISD terpicu (sumber SD Projections)
+FmSetSeriesRange(FmSetup setup) =>
+    if not na(setup.cisd_start_idx) and not na(setup.cisd_series_end_idx)
+        float bh = na
+        float bl = na
+        float wh = na
+        float wl = na
+        for i = bar_index - setup.cisd_series_end_idx to bar_index - setup.cisd_start_idx
+            bh := na(bh) ? math.max(open[i], close[i]) : math.max(bh, open[i], close[i])
+            bl := na(bl) ? math.min(open[i], close[i]) : math.min(bl, open[i], close[i])
+            wh := na(wh) ? high[i] : math.max(wh, high[i])
+            wl := na(wl) ? low[i] : math.min(wl, low[i])
+        setup.body_hi := bh
+        setup.body_lo := bl
+        setup.wick_hi := wh
+        setup.wick_lo := wl
+    setup
+
+// CISD 50%: tengah dari body mulai candle CISD sampai bar extreme C2 (FM GetCisdBodyRange)
+FmBodyMid(int start_idx, int ext_idx) =>
+    float bh = na
+    float bl = na
+    if not na(start_idx) and not na(ext_idx)
+        int off_a = bar_index - ext_idx
+        int off_b = bar_index - start_idx
+        int lo_off = math.max(0, math.min(off_a, off_b))
+        int hi_off = math.min(math.max(off_a, off_b), 500)
+        if lo_off <= hi_off
+            for i = lo_off to hi_off
+                bh := na(bh) ? math.max(open[i], close[i]) : math.max(bh, open[i], close[i])
+                bl := na(bl) ? math.min(open[i], close[i]) : math.min(bl, open[i], close[i])
+    not na(bh) and not na(bl) ? (bh + bl) / 2.0 : na
+
+// [Step 51] EQ sebuah candle C2: wick sweep > body -> tengah wick sweep (bullish: low <-> tepi bawah body,
+// bearish: high <-> tepi atas body); body >= wick -> (high + low) / 2. Hanya C2.
+f_c2_eq(bool bull, float o, float c, float h, float l) =>
+    float r = na
+    if not na(o) and not na(c) and not na(h) and not na(l)
+        float b_top = math.max(o, c)
+        float b_bot = math.min(o, c)
+        float wick = bull ? b_bot - l : h - b_top
+        r := wick > math.abs(c - o) ? (bull ? (l + b_bot) / 2.0 : (h + b_top) / 2.0) : (h + l) / 2.0
+    r
+
+// FM T-Spot: zona EQ = open <-> EQ (EQ di sisi yang benar dari open); zona CISD = level CISD <-> CISD 50%.
+// Overlap -> dari open ke tepi terjauh overlap; tidak ada overlap -> zona EQ. na bila tidak valid.
+FmMakeTSpot(bool bull, float htf_open, float eq, float cisd_open, float cisd50) =>
+    FmTSpot t = na
+    if not na(htf_open) and not na(eq) and (bull ? eq < htf_open : eq > htf_open)
+        float eq_top = math.max(htf_open, eq)
+        float eq_bot = math.min(htf_open, eq)
+        bool has_c = not na(cisd_open) and not na(cisd50)
+        float c_top = has_c ? math.max(cisd_open, cisd50) : na
+        float c_bot = has_c ? math.min(cisd_open, cisd50) : na
+        float t_top = eq_top
+        float t_bot = eq_bot
+        bool overlap = false
+        if has_c and math.min(eq_top, c_top) >= math.max(eq_bot, c_bot)
+            float o_top = bull ? htf_open : math.min(eq_top, c_top)
+            float o_bot = bull ? math.max(eq_bot, c_bot) : htf_open
+            if o_top > o_bot
+                t_top := o_top
+                t_bot := o_bot
+                overlap := true
+        t := FmTSpot.new(bull = bull, htf_open = htf_open, eq = eq, eq_top = eq_top, eq_bot = eq_bot, cisd_open = cisd_open, cisd50 = cisd50, cisd_top = c_top, cisd_bot = c_bot, top = t_top, bot = t_bot, overlap = overlap)
+    t
+
+// T-Spot C3, ditetapkan sekali setelah C2 close dengan CISD yang terpicu. HTF open = open C3.
+// [Step 51] EQ = EQ C2 (wick sweep > body -> tengah wick sweep, selain itu seluruh range C2).
+FmSetTSpot3(FmSetup s) =>
+    if na(s.ts3) and s.is_post_c2 and s.cisd_triggered and not na(s.c2_h) and not na(s.c3_open)
+        bool bull = s.is_bullish
+        float eq = f_c2_eq(bull, s.c2_open, s.c2_close, s.c2_h, s.c2_l)
+        s.ts3 := FmMakeTSpot(bull, s.c3_open, eq, s.cisd_level, FmBodyMid(s.cisd_start_idx, s.extreme_bar_idx))
+    s
+
+// Status: ACTIVE -> TOUCHED (harga masuk ke zona). CONFIRMED (IC-CISD baru setelah sentuhan) datang bersama IC-CISD.
+FmTouch(FmTSpot t, bool bull, int n_ic) =>
+    if not na(t)
+        if t.state == 0 and (bull ? low <= t.top : high >= t.bot)
+            t.state := 1
+            t.ic_base := n_ic
+    t
+f_ic_n(FmSetup s) =>
+    na(s.ic_list) ? 0 : s.ic_list.size()
+
+// Setup live baru yang menyapu C1 di sweep_price; candle HTF saat ini (cs.candles.first()) adalah C2.
+FmNewSetup(FmSet cs, bool bull, float sweep_price, int c1_o_idx, int c1_bar, bool on_htf_open) =>
+    FmSetup setup = FmSetup.new()
+    setup.swept_o_idx := c1_o_idx
+    setup.c1_idx := c1_bar
+    FmCandle cur = cs.candles.first()
+    setup.is_bullish := bull
+    setup.sweep_price := sweep_price
+    setup.sweep_bar_idx := bar_index
+    setup.htf_candle_idx := cur.o_idx
+    setup.htf_count := 1
+    // Extreme C2 sejauh ini (update candle untuk bar ini berjalan setelah monitor, jadi sertakan bar ini)
+    if on_htf_open or (bull ? low < cur.l : high > cur.h)
+        setup.tracked_extreme := bull ? low : high
+        setup.extreme_bar_idx := bar_index
+    else
+        setup.tracked_extreme := bull ? cur.l : cur.h
+        setup.extreme_bar_idx := bull ? cur.l_idx : cur.h_idx
+    FmSetLevel(setup, setup.extreme_bar_idx)
+    setup.is_confirmed := bull ? close > setup.sweep_price : close < setup.sweep_price
+    setup
+
+// Satu sisi dari pelacakan live. Mengembalikan setup live setelah bar ini (bisa diganti saat xC2 / batal).
+FmTrackSide(FmSet cs, FmSetup setup, bool bull, bool on_htf_open) =>
+    FmSetup out = setup
+    if setup.c3c and not setup.is_post_c2
+        // [Step 42] Jendela penutupan C3: C3 mengambil extreme C2 mengakhirinya (setup baru, C2 lama = C1); CISD boleh tercetak di C3
+        if bull ? low < setup.c2_extreme : high > setup.c2_extreme
+            out := FmNewSetup(cs, bull, setup.c2_extreme, setup.htf_candle_idx, setup.extreme_bar_idx, on_htf_open)
+        else if setup.has_cisd and not setup.cisd_triggered and (bull ? close > setup.cisd_level : close < setup.cisd_level)
+            setup.cisd_triggered := true
+            if na(setup.cisd_end_idx)
+                setup.cisd_end_idx := bar_index
+            FmSetSeriesRange(setup)
+    else if not setup.is_post_c2
+        // Fase C2: sweep sudah kembali ke dalam?
+        setup.is_confirmed := bull ? close > setup.sweep_price : close < setup.sweep_price
+        // Extreme C2 baru -> telusuri ulang level CISD, pemicu direset
+        if bull ? low < setup.tracked_extreme : high > setup.tracked_extreme
+            setup.tracked_extreme := bull ? low : high
+            setup.extreme_bar_idx := bar_index
+            if FmSetLevel(setup, bar_index)
+                setup.cisd_triggered := false
+                setup.cisd_end_idx := na
+        // Body break = ujung garis; CISD dihitung setelah sweep juga kembali ke dalam
+        if setup.has_cisd and na(setup.cisd_end_idx) and (bull ? close > setup.cisd_level : close < setup.cisd_level)
+            setup.cisd_end_idx := bar_index
+        // [Step 19] level yang relevan sudah diambil oleh extreme C2?
+        if not setup.rs_ok and (bull ? setup.tracked_extreme < setup.sweep_price : setup.tracked_extreme > setup.sweep_price)
+            setup.rs_ok := true
+        if setup.rs_ok and setup.is_confirmed and setup.has_cisd and not setup.cisd_triggered and not na(setup.cisd_end_idx)
+            setup.cisd_triggered := true
+            FmSetSeriesRange(setup)
+    else
+        // extreme C3 (label)
+        if na(setup.c3_ext) or (bull ? low < setup.c3_ext : high > setup.c3_ext)
+            setup.c3_ext := bull ? low : high
+            setup.c3_ext_idx := bar_index
+        // C3: protected swing patah -> xC2 (CISD sudah tercetak: disimpan sebagai tidak valid, disembunyikan) atau batal; C2 lama menjadi C1
+        if bull ? low < setup.c2_extreme : high > setup.c2_extreme
+            if setup.cisd_triggered
+                setup.is_invalid := true
+                cs.setups.unshift(setup)
+            out := FmNewSetup(cs, bull, setup.c2_extreme, setup.htf_candle_idx, setup.extreme_bar_idx, on_htf_open)
+        else if setup.has_cisd and not setup.cisd_triggered and (bull ? close > setup.cisd_level : close < setup.cisd_level)
+            setup.cisd_triggered := true
+            setup.cisd_end_idx := bar_index
+            FmSetSeriesRange(setup)
+            FmSetTSpot3(setup)
+        FmTouch(setup.ts3, bull, f_ic_n(setup))
+    out
+
+// Close HTF dari setup live, sebelum candle baru ditambahkan. Mengembalikan false bila setup live berakhir di sini.
+FmCloseSide(FmSet cs, FmSetup setup, bool bull) =>
+    bool keep = true
+    if setup.sweep_bar_idx != bar_index
+        setup.htf_count := setup.htf_count + 1
+        // Close dari candle yang baru berakhir (bar sebelumnya) kembali melewati level C1 yang disapu?
+        bool beyond_c1 = bull ? close[1] < setup.sweep_price : close[1] > setup.sweep_price
+        if setup.c3c and not setup.is_post_c2
+            // [Step 42] C3 close: penutupan C3 = close melewati level, kembali ke dalam level yang disapu, CISD tembus
+            FmCandle c3k = cs.candles.first()
+            bool pass = bull ? c3k.c > setup.c3c_lvl : c3k.c < setup.c3c_lvl
+            if pass and not beyond_c1 and setup.has_cisd and not na(setup.cisd_end_idx)
+                setup.cisd_triggered := true
+                setup.c3c_ok := true
+                setup.is_post_c2 := true
+                setup.is_confirmed := true
+                setup.c3_o_idx := c3k.o_idx
+                setup.c3_open := c3k.o
+                setup.c3_ext := bull ? c3k.l : c3k.h
+                setup.c3_ext_idx := bull ? c3k.l_idx : c3k.h_idx
+                setup.c3_mid := (c3k.h + c3k.l) / 2.0
+                setup.c4_o_idx := bar_index
+                setup.ts4 := FmMakeTSpot(bull, open, setup.c3_mid, setup.cisd_level, FmBodyMid(setup.cisd_start_idx, setup.extreme_bar_idx))
+                setup.c4_active := true
+                cs.setups.unshift(setup)
+            keep := false
+        else if not setup.is_post_c2
+            // C2 close: harus close kembali ke dalam level yang disapu (dan sudah mengambil level yang relevan, step 19)
+            if not beyond_c1 and setup.rs_ok
+                setup.is_post_c2 := true
+                setup.is_confirmed := true
+                FmCandle c2c = cs.candles.first()
+                setup.c2_extreme := bull ? c2c.l : c2c.h
+                setup.c2_mid := f_c2_eq(bull, c2c.o, c2c.c, c2c.h, c2c.l)  // [Step 51]
+                setup.c3_o_idx := bar_index
+                setup.c2_open := c2c.o
+                setup.c2_close := c2c.c
+                setup.c2_h := c2c.h
+                setup.c2_l := c2c.l
+                setup.c3_open := open
+                FmSetTSpot3(setup)
+            else
+                keep := false
+        else if setup.htf_count >= 2
+            // C3 close: dipertahankan bila CISD tercetak; void bila sumber sweep mati (aturan GG 1). Dibekukan setelah ini.
+            if setup.cisd_triggered
+                setup.is_void := beyond_c1
+                if not beyond_c1
+                    FmCandle c3c = cs.candles.first()
+                    setup.c3_mid := (c3c.h + c3c.l) / 2.0
+                    setup.c4_o_idx := bar_index
+                    // T-Spot C4: HTF open = open C4, EQ = tengah seluruh range C3
+                    setup.ts4 := FmMakeTSpot(bull, open, setup.c3_mid, setup.cisd_level, FmBodyMid(setup.cisd_start_idx, setup.extreme_bar_idx))
+                    setup.c4_active := true
+                cs.setups.unshift(setup)
+            keep := false
+    keep
+
+// Per bar: (candle HTF baru) tutup setup live -> tambah candle baru -> pelacakan live.
+// Jadi bar pertama C3 dihitung sebagai C3 dan bar pertama C4 tidak dilacak sebagai C3.
+method FmMonitor(FmSet cs, bool on_htf_open) =>
+    if on_htf_open
+        // C4 dari setup yang selesai berakhir saat candle HTF berikutnya open
+        for h in cs.setups
+            if h.c4_active and h.c4_o_idx < bar_index
+                h.c4_active := false
+                h.c4_end_x := bar_index
+        if cs.candles.size() > 0
+            if cs.has_live_bearish
+                cs.has_live_bearish := FmCloseSide(cs, cs.live_bearish, false)
+            if cs.has_live_bullish
+                cs.has_live_bullish := FmCloseSide(cs, cs.live_bullish, true)
+        cs.candles.unshift(FmCandle.new(o = open, c = close, h = high, l = low, o_idx = bar_index, h_idx = bar_index, l_idx = bar_index))
+        while cs.candles.size() > 6  // C2 .. C-3 (Formation Liquidity melihat mundur sampai C-2)
+            cs.candles.pop()
+        while cs.setups.size() > math.max(2 * cisd_display_cap, 20)
+            cs.setups.pop()
+    // Pelacakan C4 (setup selesai): extreme untuk label C4, xC4 = melewati extreme C3. CISD tetap beku.
+    for h in cs.setups
+        // [Mark II c] protected swing diambil setelah C3 close: wick melewati extreme C2 -> label C2 menjadi x merah
+        if not h.is_invalid and na(h.c2_brk_idx) and not na(h.c2_extreme) and (h.is_bullish ? low < h.c2_extreme : high > h.c2_extreme)
+            h.c2_brk_idx := bar_index
+        if h.c4_active
+            FmTouch(h.ts4, h.is_bullish, f_ic_n(h))
+            if na(h.c4_ext) or (h.is_bullish ? low < h.c4_ext : high > h.c4_ext)
+                h.c4_ext := h.is_bullish ? low : high
+                h.c4_ext_idx := bar_index
+            bool xc4 = not na(h.c3_ext) and (h.is_bullish ? low < h.c3_ext : high > h.c3_ext)
+            if xc4
+                h.c4_invalid := true
+                h.c4_active := false
+                h.c4_inv_idx := bar_index
+    if cs.candles.size() > 1
+        FmCandle prev_htf = cs.candles.get(1)
+        if not cs.has_live_bearish
+            if high > prev_htf.h
+                cs.live_bearish := FmNewSetup(cs, false, prev_htf.h, prev_htf.o_idx, prev_htf.h_idx, on_htf_open)
+                cs.has_live_bearish := true
+        else
+            cs.live_bearish := FmTrackSide(cs, cs.live_bearish, false, on_htf_open)
+        if not cs.has_live_bullish
+            if low < prev_htf.l
+                cs.live_bullish := FmNewSetup(cs, true, prev_htf.l, prev_htf.o_idx, prev_htf.l_idx, on_htf_open)
+                cs.has_live_bullish := true
+        else
+            cs.live_bullish := FmTrackSide(cs, cs.live_bullish, true, on_htf_open)
+    cs
+
+method FmUpdate(FmSet cs) =>
+    if cs.candles.size() > 0
+        FmCandle cur = cs.candles.first()
+        if high > cur.h
+            cur.h := high
+            cur.h_idx := bar_index
+        if low < cur.l
+            cur.l := low
+            cur.l_idx := bar_index
+        cur.c := close
+    cs
+
+// Hitung saat close: pelacakan live pada bar terkonfirmasi; candle HTF1 baru langsung diproses
+if cisd_show and fm_valid and fm_in_win
+    if fm_new_htf or barstate.isconfirmed
+        fmset.FmMonitor(fm_new_htf)
+    fmset.FmUpdate()
+
+//==============================================================================
+// [Step 13] IC-CISD (rebuild FM)
+// Level = open dari candle berlawanan yang memulai IC, ditelusuri ulang pada setiap extreme baru (seperti CISD utama).
+// Konfirmasi = close menembus level setelah bar extreme, hanya bila ada swing 3 candle di dalam rangkaian
+// (titik = swing paling extreme). Break tanpa swing dan tanpa extreme baru -> dibuang. Candle berlawanan berikutnya
+// memulai IC berikutnya. Dari bar setelah body break CISD utama sampai akhir C4; berhenti pada xC2 / void / xC4.
+//==============================================================================
+FmIcClear(FmSetup s) =>
+    s.ic_pending := false
+    s.ic_level := na
+    s.ic_start_idx := na
+    s.ic_extreme := na
+    s.ic_extreme_idx := na
+    s
+FmIcStop(FmSetup s) =>
+    s.ic_active := false
+    FmIcClear(s)
+FmIcReset(FmSetup s) =>
+    FmIcStop(s)
+    if not na(s.ic_list)
+        s.ic_list.clear()
+    s
+// Swing 3 candle di [start, end_idx): yang tengah melewati kedua tetangganya (sama boleh); bear = tertinggi, bull = terendah.
+// Pemindaian dibatasi 500 bar terakhir.
+FmIcSwing(FmSetup s, int end_idx) =>
+    float best_px = na
+    int best_idx = na
+    if not na(s.ic_start_idx) and end_idx > s.ic_start_idx
+        for m = math.max(s.ic_start_idx, bar_index - 500, 1) to end_idx - 1
+            int off_m = bar_index - m
+            int off_l = off_m + 1
+            int off_r = off_m - 1
+            if off_r >= 0
+                if s.is_bullish
+                    if low[off_m] <= low[off_l] and low[off_m] <= low[off_r] and (na(best_px) or low[off_m] < best_px)
+                        best_px := low[off_m]
+                        best_idx := m
+                else
+                    if high[off_m] >= high[off_l] and high[off_m] >= high[off_r] and (na(best_px) or high[off_m] > best_px)
+                        best_px := high[off_m]
+                        best_idx := m
+    [best_px, best_idx]
+// Wick melewati swing IC yang tersimpan -> diambil (abu-abu)
+FmIcTaken(FmSetup s) =>
+    if not na(s.ic_list)
+        for ic in s.ic_list
+            if not ic.taken and (s.is_bullish ? low < ic.ext_px : high > ic.ext_px)
+                ic.taken := true
+    s
+// T-Spot TOUCHED -> CONFIRMED bila ada IC-CISD baru setelah sentuhan
+FmTsConfirm(FmTSpot t, int n_ic) =>
+    if not na(t)
+        if t.state == 1 and n_ic > t.ic_base
+            t.state := 2
+    t
+// Satu bar tertutup untuk satu setup. hard_stop = xC2 / void / xC4 / C4 selesai.
+FmIcUpdate(FmSetup s, bool hard_stop) =>
+    if hard_stop
+        FmIcStop(s)
+    else
+        FmIcTaken(s)
+        if na(s.cisd_end_idx)
+            // Reset CISD utama (extreme C2 baru): mulai dari awal
+            if s.ic_active or s.ic_pending
+                FmIcReset(s)
+        else if bar_index <= s.cisd_end_idx
+            FmIcClear(s)
+            s.ic_active := false
+        else
+            if not s.ic_active
+                s.ic_active := true
+                if na(s.ic_list)
+                    s.ic_list := array.new<FmIc>()
+                FmIcClear(s)
+            bool opp_bar = s.is_bullish ? close < open : close > open
+            if s.ic_pending
+                bool new_ext = s.is_bullish ? low < s.ic_extreme : high > s.ic_extreme
+                if new_ext
+                    s.ic_extreme := s.is_bullish ? low : high
+                    s.ic_extreme_idx := bar_index
+                    [lvl, lvl_idx, lvl_end] = FindCISDLevel(s.ic_extreme_idx, s.is_bullish ? -1 : 1)
+                    if not na(lvl)
+                        s.ic_level := lvl
+                        s.ic_start_idx := lvl_idx
+                if bar_index > s.ic_extreme_idx and not na(s.ic_level)
+                    if s.is_bullish ? close > s.ic_level : close < s.ic_level
+                        [sw_px, sw_idx] = FmIcSwing(s, bar_index)
+                        if not na(sw_px)
+                            s.ic_list.push(FmIc.new(level = s.ic_level, start_idx = s.ic_start_idx, end_idx = bar_index, ext_px = sw_px, ext_idx = sw_idx))
+                            FmIcClear(s)
+                        else if not new_ext
+                            FmIcClear(s)
+            else if opp_bar
+                s.ic_pending := true
+                s.ic_level := open
+                s.ic_start_idx := bar_index
+                s.ic_extreme := s.is_bullish ? low : high
+                s.ic_extreme_idx := bar_index
+        // T-Spot dari tahap yang sedang berjalan
+        if s.is_post_c2 and not s.c4_active
+            FmTsConfirm(s.ts3, f_ic_n(s))
+        if s.c4_active
+            FmTsConfirm(s.ts4, f_ic_n(s))
+    s
+
+if fm_ic_show and cisd_show and fm_valid and fm_in_win and barstate.isconfirmed
+    if fmset.has_live_bearish
+        FmIcUpdate(fmset.live_bearish, fmset.live_bearish.is_invalid)
+    if fmset.has_live_bullish
+        FmIcUpdate(fmset.live_bullish, fmset.live_bullish.is_invalid)
+    for h in fmset.setups
+        if h.ic_active or h.ic_pending or h.c4_active
+            FmIcUpdate(h, h.is_invalid or h.is_void or h.c4_invalid or not h.c4_active)
+
+//==============================================================================
+// [Step 11] SMT (FM) — resolver simbol, data pembanding, tracker HTF1, pengecekan C1-C2 / C2-C3
+//==============================================================================
+smtInList(string s, string csv) =>
+    str.contains("," + csv + ",", "," + s + ",")
+
+// Instrumen logis dari chart. Futures dicocokkan lewat root dan hanya bila simbolnya future.
+smtLogicalKey() =>
+    string r = str.upper(syminfo.root)
+    string t = str.upper(syminfo.ticker)
+    string k = ""
+    if syminfo.type == "futures"
+        if smtInList(r, "NQ,MNQ")
+            k := "FNQ"
+        else if smtInList(r, "ES,MES")
+            k := "FES"
+        else if smtInList(r, "YM,MYM")
+            k := "FYM"
+    else if smtInList(t, "EURUSD")
+        k := "EURUSD"
+    else if smtInList(t, "GBPUSD")
+        k := "GBPUSD"
+    else if smtInList(t, "AUDUSD")
+        k := "AUDUSD"
+    else if smtInList(t, "NZDUSD")
+        k := "NZDUSD"
+    else if smtInList(t, "DXY,USDX,USDOLLAR")
+        k := "DXY"
+    else if smtInList(t, "NAS100")
+        k := "NAS100"
+    else if smtInList(t, "US30")
+        k := "US30"
+    else if smtInList(t, "SP500")
+        k := "SP500"
+    else if smtInList(t, "USOIL,WTICOUSD,XTIUSD")
+        k := "USOIL"
+    else if smtInList(t, "RBOBGASOLINE,RBOB,GASOLINE")
+        k := "RBOB"
+    else if smtInList(t, "HEATINGOIL,HEATOIL")
+        k := "HEAT"
+    else if smtInList(t, "XAUUSD,GOLD")
+        k := "XAUUSD"
+    else if smtInList(t, "XAGUSD,SILVER")
+        k := "XAGUSD"
+    else if smtInList(t, "XAUEUR")
+        k := "XAUEUR"
+    else if smtInList(t, "XAUGBP")
+        k := "XAUGBP"
+    k
+
+// Dua anggota lainnya. CFD indeks dibandingkan dengan futures; selain itu triad simetris.
+smtOther(string key, bool second, bool dxyAus) =>
+    switch key
+        "EURUSD" => second ? "DXY" : "GBPUSD"
+        "GBPUSD" => second ? "DXY" : "EURUSD"
+        "AUDUSD" => second ? "DXY" : "NZDUSD"
+        "NZDUSD" => second ? "DXY" : "AUDUSD"
+        "DXY"    => dxyAus ? (second ? "NZDUSD" : "AUDUSD") : (second ? "GBPUSD" : "EURUSD")
+        "NAS100" => second ? "FES" : "FYM"
+        "SP500"  => second ? "FNQ" : "FYM"
+        "US30"   => second ? "FES" : "FNQ"
+        "FNQ"    => second ? "FYM" : "FES"
+        "FES"    => second ? "FYM" : "FNQ"
+        "FYM"    => second ? "FES" : "FNQ"
+        "USOIL"  => second ? "HEAT" : "RBOB"
+        "RBOB"   => second ? "HEAT" : "USOIL"
+        "HEAT"   => second ? "RBOB" : "USOIL"
+        => ""
+
+// Quad emas: tiga anggota lain dari grup 4 simbol
+smtOtherQuad(string key, int slot) =>
+    switch key
+        "XAUUSD" => slot == 1 ? "XAGUSD" : slot == 2 ? "XAUEUR" : "XAUGBP"
+        "XAGUSD" => slot == 1 ? "XAUUSD" : slot == 2 ? "XAUEUR" : "XAUGBP"
+        "XAUEUR" => slot == 1 ? "XAUUSD" : slot == 2 ? "XAGUSD" : "XAUGBP"
+        "XAUGBP" => slot == 1 ? "XAUUSD" : slot == 2 ? "XAGUSD" : "XAUEUR"
+        => ""
+
+// Simbol provider pilihan per instrumen logis
+smtPrimary(string key) =>
+    switch key
+        "EURUSD" => "FOREXCOM:EURUSD"
+        "GBPUSD" => "FOREXCOM:GBPUSD"
+        "AUDUSD" => "FOREXCOM:AUDUSD"
+        "NZDUSD" => "FOREXCOM:NZDUSD"
+        "DXY"    => "FOREXCOM:USDX"
+        "NAS100" => "FXCM:NAS100"
+        "US30"   => "FXCM:US30"
+        "SP500"  => "VANTAGE:SP500"
+        "FNQ"    => "CME_MINI:NQ1!"
+        "FES"    => "CME_MINI:ES1!"
+        "FYM"    => "CBOT_MINI:YM1!"
+        "USOIL"  => "FOREXCOM:USOIL"
+        "RBOB"   => "CMCMARKETS:RBOBGASOLINE"
+        "HEAT"   => "CAPITALCOM:HEATINGOIL"
+        "XAUUSD" => "FOREXCOM:XAUUSD"
+        "XAGUSD" => "FOREXCOM:XAGUSD"
+        "XAUEUR" => "FOREXCOM:XAUEUR"
+        "XAUGBP" => "FOREXCOM:XAUGBP"
+        => ""
+
+// Sebuah pasangan inverse tepat bila salah satu sisinya DXY
+smtInverse(string a, string b) =>
+    (a == "DXY") != (b == "DXY")
+
+// Kunci logis anggota pembanding 1 / 2 / 3 untuk chart ini ('' = tidak ada). String sederhana (tetap selama skrip),
+// sehingga request di bawah berupa request biasa, bukan dinamis.
+smtOtherKey(int slot) =>
+    string key = smtLogicalKey()
+    string o = ""
+    if key != ""
+        bool dxyAus = smt_dxy_triad_input == 'AUDUSD + NZDUSD'
+        bool isQuad = smtOtherQuad(key, 1) != ""
+        o := isQuad ? smtOtherQuad(key, slot) : slot == 3 ? "" : smtOther(key, slot == 2, dxyAus)
+    o
+
+bool smt_on = smt_show_input and cisd_show and fm_valid
+bool smt_data_on = (smt_show_input or psp_show) and cisd_show and fm_valid  // [Step 14] request ini juga melayani PSP
+bool smt_auto = smt_mode_input == 'Automatic'
+string smt_key = smtLogicalKey()
+string smt_o1 = smtOtherKey(1)
+string smt_o2 = smtOtherKey(2)
+string smt_o3 = smtOtherKey(3)
+string smt_sym1_resolved = smt_auto ? smtPrimary(smt_o1) : smt_sym1_manual_input
+string smt_sym2_resolved = smt_auto ? smtPrimary(smt_o2) : smt_sym2_manual_input
+string smt_sym3_resolved = ''
+bool smt_sym1_inverse = smt_auto ? smtInverse(smt_key, smt_o1) : smt_sym1_inverse_input
+bool smt_sym2_inverse = smt_auto ? smtInverse(smt_key, smt_o2) : smt_sym2_inverse_input
+bool smt_sym3_inverse = smt_auto ? smtInverse(smt_key, smt_o3) : smt_sym3_inverse_input
+string smt_sym1_ticker = smt_sym1_resolved != "" ? syminfo.ticker(smt_sym1_resolved) : ""
+string smt_sym2_ticker = smt_sym2_resolved != "" ? syminfo.ticker(smt_sym2_resolved) : ""
+string smt_sym3_ticker = smt_sym3_resolved != "" ? syminfo.ticker(smt_sym3_resolved) : ""
+int smt_n_active = (smt_sym1_resolved != '' ? 1 : 0) + (smt_sym2_enable_input and smt_sym2_resolved != '' ? 1 : 0) + (smt_sym3_enable_input and smt_sym3_resolved != '' ? 1 : 0)  // [Step 56] satu simbol -> label 'SMT'
+int smt_calc_bars = math.min(max_calc_bars, 4500) + 100
+
+// Satu request per simbol pembanding (timeframe chart); open / close disimpan untuk PSP nanti.
+string smt_req_tf = smt_src_in == 'HTF1' and fm_valid and not fm_custom_daily ? actual_tf_1 : ''  // [Mark II w]
+GetSmtData(string symbol, bool enabled) =>
+    if enabled and fm_in_win and symbol != ""
+        request.security(symbol, smt_req_tf, [high, low, open, close], lookahead = barmerge.lookahead_on, ignore_invalid_symbol = true)  // [Mark II u] tanpa calc_bars_count: dihitung mundur dari hari ini, jadi di Bar Replay simbolnya na
+    else
+        [float(na), float(na), float(na), float(na)]
+[smt_s1_h, smt_s1_l, smt_s1_o, smt_s1_c] = GetSmtData(smt_sym1_resolved, smt_data_on)
+[smt_s2_h, smt_s2_l, smt_s2_o, smt_s2_c] = GetSmtData(smt_sym2_resolved, smt_data_on and smt_sym2_enable_input)  // [Mark II j] hanya bila Second SMT aktif
+// simbol 3 off, tanpa request
+float smt_s3_h = na
+float smt_s3_l = na
+float smt_s3_o = na
+float smt_s3_c = na
+
+//==============================================================================
+// [Step 21] DATA STATUS BAR — high / low hari sebelumnya (hari trading New York, dari bar 1H)
+//==============================================================================
+sb_tk = str.upper(syminfo.ticker)
+sb_is_metal = str.startswith(sb_tk, 'XAU') or str.startswith(sb_tk, 'XAG') or str.startswith(sb_tk, 'XPT') or str.startswith(sb_tk, 'XPD')
+sb_has_digit = str.contains(sb_tk, '0') or str.contains(sb_tk, '1') or str.contains(sb_tk, '2') or str.contains(sb_tk, '3') or str.contains(sb_tk, '4') or str.contains(sb_tk, '5') or str.contains(sb_tk, '6') or str.contains(sb_tk, '7') or str.contains(sb_tk, '8') or str.contains(sb_tk, '9')
+sb_is_fx = not sb_is_metal and (syminfo.type == 'forex' or (syminfo.type == 'cfd' and str.length(sb_tk) == 6 and not sb_has_digit))
+sb_day_h = sb_is_fx ? 17 : 18
+sb_crypto = syminfo.type == 'crypto'
+
+f_sb_newday(simple int h, simple bool crypto) =>
+    int off = (24 - h) * 3600000
+    bool d1 = timeframe.change('1D')
+    crypto ? d1 : not na(time[1]) and dayofmonth(time + off, 'America/New_York') != dayofmonth(time[1] + off, 'America/New_York')
+
+// 300 -> 5M, 3600 -> 1H, 86400 -> D, 604800 -> W
+f_sb_tf(int sec) =>
+    string r = 'M'
+    if sec < 60
+        r := str.tostring(sec) + 'S'
+    else if sec < 3600
+        r := str.tostring(int(sec / 60)) + 'M'
+    else if sec < 86400
+        r := str.tostring(int(sec / 3600)) + 'H'
+    else if sec < 604800
+        r := sec == 86400 ? 'D' : str.tostring(int(sec / 86400)) + 'D'
+    else if sec % 604800 == 0
+        r := sec == 604800 ? 'W' : str.tostring(int(sec / 604800)) + 'W'
+    r
+
+// High / low berjalan dari candle HTF1 saat ini dan sebelumnya, untuk chart dan tiap simbol
+type SmtTracker
+    float h
+    float l
+    float prev_h
+    float prev_l
+method SmtRoll(SmtTracker t, float h, float l) =>
+    t.prev_h := t.h
+    t.prev_l := t.l
+    t.h := h
+    t.l := l
+    t
+method SmtGrow(SmtTracker t, float h, float l) =>
+    if not na(h) and (na(t.h) or h > t.h)
+        t.h := h
+    if not na(l) and (na(t.l) or l < t.l)
+        t.l := l
+    t
+var SmtTracker smt_tc = SmtTracker.new()
+var SmtTracker smt_t1 = SmtTracker.new()
+var SmtTracker smt_t2 = SmtTracker.new()
+var SmtTracker smt_t3 = SmtTracker.new()
+var int smt_roll_bar = -1  // bukan na: 'na != bar_index' tidak pernah true
+
+// Satu pasangan: bearish = satu sisi membuat higher high sementara sisi lain membuat lower high
+// (pasangan inverse: sisi lain membuat higher low / lower low); bullish kebalikannya.
+f_smt_pair(bool bear, SmtTracker c, SmtTracker t, bool inv) =>
+    bool hit = false
+    if not na(t.prev_h) and not na(t.h) and not na(t.prev_l) and not na(t.l) and not na(c.prev_h) and not na(c.prev_l)
+        bool curr_hh = c.h > c.prev_h
+        bool curr_ll = c.l < c.prev_l
+        bool curr_lh = c.h < c.prev_h
+        bool curr_hl = c.l > c.prev_l
+        bool comp_hh = t.h > t.prev_h
+        bool comp_ll = t.l < t.prev_l
+        bool comp_lh = t.h < t.prev_h
+        bool comp_hl = t.l > t.prev_l
+        if bear
+            hit := inv ? ((curr_hh and comp_hl) or (comp_ll and curr_lh)) : ((curr_hh and comp_lh) or (comp_hh and curr_lh))
+        else
+            hit := inv ? ((curr_ll and comp_lh) or (comp_hh and curr_hl)) : ((curr_ll and comp_hl) or (comp_ll and curr_hl))
+    hit
+// Simbol yang divergen digabung dengan '/', '' bila tidak ada
+f_smt_names(bool bear) =>
+    array<string> names = array.new<string>()
+    if f_smt_pair(bear, smt_tc, smt_t1, smt_sym1_inverse)
+        names.push(smt_sym1_ticker)
+    if smt_sym2_enable_input and f_smt_pair(bear, smt_tc, smt_t2, smt_sym2_inverse)
+        names.push(smt_sym2_ticker)
+    if smt_sym3_enable_input and f_smt_pair(bear, smt_tc, smt_t3, smt_sym3_inverse)
+        names.push(smt_sym3_ticker)
+    names.join('/')
+// Setup live: C1 -> C2 selama C2 berjalan, C2 -> C3 selama C3 berjalan (candle HTF1 sebelumnya adalah C1 / C2)
+f_smt_apply(FmSetup s) =>
+    string nm = f_smt_names(not s.is_bullish)
+    if s.c3c and not s.is_post_c2
+        int skip42 = 0  // [Step 42] Jendela penutupan C3: pertahankan SMT C1 -> C2
+    else if not s.is_post_c2
+        s.smt1 := nm != ''
+        s.smt1_sym := nm
+        s.smt1_x1 := s.c1_idx
+        s.smt1_y1 := s.sweep_price
+        s.smt1_x2 := s.extreme_bar_idx
+        s.smt1_y2 := s.tracked_extreme
+    else
+        s.smt2 := nm != '' and not na(s.c3_ext)
+        s.smt2_sym := nm
+        s.smt2_x1 := s.extreme_bar_idx
+        s.smt2_y1 := s.c2_extreme
+        s.smt2_x2 := s.c3_ext_idx
+        s.smt2_y2 := s.c3_ext
+    s
+
+//==============================================================================
+// [Mark II i] HTF CANDLE SMT (satu simbol): sebuah candle panel vs high / low dari tiap 'Lookback' candle panel terakhir
+//==============================================================================
+type HcBar
+    int o_idx
+    float ch
+    float cl
+    float ah
+    float al
+    float bh
+    float bl
+type HcMark
+    int ref_o
+    int cur_o
+    bool bear
+    float y1
+    float y2
+    string nm
+var array<HcBar> hc_hist = array.new<HcBar>()    // candle HTF1 yang sudah tutup, terbaru di depan (maks 3)
+var array<HcMark> hc_marks = array.new<HcMark>() // Garis Confirmed, terbaru di belakang
+var int hc_cur_o = na                            // o_idx dari candle HTF1 yang sedang berjalan
+float hc_pc = close[1]                           // close candle yang baru saja tutup (bar pertama candle berikutnya)
+// mengambil level? sisi: bear = high, bull = low; pasangan inverse dibandingkan sebaliknya
+f_hc_took(bool bear, float h, float l, float rh, float rl, bool inv) =>
+    bool r = false
+    if not na(h) and not na(l) and not na(rh) and not na(rl)
+        r := bear ? (inv ? l < rl : h > rh) : (inv ? h > rh : l < rl)
+    r
+// Candle (ch / cl + simbol ah / al) vs hist: referensi divergen terdekat -> HcMark (na bila tidak ada)
+f_hc_eval_h(array<HcBar> hist, bool bear, int cur_o, float ch, float cl, float ah, float al, float bh, float bl) =>
+    HcMark mk = na
+    int n = math.min(hc_look, hist.size())
+    if n > 0
+        for k = 0 to n - 1
+            HcBar r = hist.get(k)
+            bool c_took = f_hc_took(bear, ch, cl, r.ch, r.cl, false)
+            array<string> names = array.new<string>()
+            if smt_sym1_resolved != '' and not na(ah) and not na(r.ah) and f_hc_took(bear, ah, al, r.ah, r.al, smt_sym1_inverse) != c_took
+                names.push(smt_sym1_ticker)
+            if smt_sym2_enable_input and smt_sym2_resolved != '' and not na(bh) and not na(r.bh) and f_hc_took(bear, bh, bl, r.bh, r.bl, smt_sym2_inverse) != c_took
+                names.push(smt_sym2_ticker)
+            if names.size() > 0
+                mk := HcMark.new(ref_o = r.o_idx, cur_o = cur_o, bear = bear, y1 = bear ? r.ch : r.cl, y2 = bear ? ch : cl, nm = names.join('/'))
+                break
+    mk
+// [Step 63] close candle melewati extreme SMT menghapus garis yang tersimpan
+f_hc_inv(array<HcMark> hm, float cc) =>
+    if not na(cc) and hm.size() > 0
+        for i = hm.size() - 1 to 0
+            HcMark m = hm.get(i)
+            if m.bear ? cc > math.max(m.y1, m.y2) : cc < math.min(m.y1, m.y2)
+                hm.remove(i)
+    0
+// Pada candle panel baru (tracker masih memegang candle yang baru tutup): tanda Confirmed, lalu simpan
+f_hc_close(array<HcBar> hist, array<HcMark> marks, int cur_o, SmtTracker tc, SmtTracker t1, SmtTracker t2) =>
+    if not na(cur_o) and not na(tc.h)
+        f_hc_inv(marks, hc_pc)
+        if hc_mode == 'Confirmed'
+            for bear in array.from(true, false)
+                HcMark mk = f_hc_eval_h(hist, bear, cur_o, tc.h, tc.l, t1.h, t1.l, t2.h, t2.l)
+                if not na(mk)
+                    marks.push(mk)
+            while marks.size() > hc_cap
+                marks.shift()
+        hist.unshift(HcBar.new(o_idx = cur_o, ch = tc.h, cl = tc.l, ah = t1.h, al = t1.l, bh = t2.h, bl = t2.l))
+        while hist.size() > 3
+            hist.pop()
+    0
+
+// [Mark II l] SMT Fill di panel HTF1: SMT antara dua candle berurutan di dalam FVG panel yang masih hidup
+type FgGap
+    bool bull
+    float top
+    float bot
+    int o3
+type FgMark
+    int a_o
+    int b_o
+    bool bull
+    float ya
+    float yb
+var array<FgGap> fg_gaps1 = array.new<FgGap>()
+var array<FgMark> fg_marks1 = array.new<FgMark>()
+// A = candle tertutup (hist), B = ch / cl + h / l simbol; extreme yang lebih dalam dari keduanya harus berada di dalam gap
+f_fg_eval(FgGap g, HcBar a, int b_o, float ch, float cl, float ah, float al, float bh, float bl) =>
+    FgMark m = na
+    if not na(a) and not na(a.o_idx) and a.o_idx >= g.o3 and not na(ch) and not na(cl) and not na(a.ch) and not na(a.cl)
+        bool bear = not g.bull
+        float deep = g.bull ? math.min(a.cl, cl) : math.max(a.ch, ch)
+        bool inside = g.bull ? deep <= g.top : deep >= g.bot
+        if inside
+            bool c_took = f_hc_took(bear, ch, cl, a.ch, a.cl, false)
+            bool d1 = smt_sym1_resolved != '' and not na(ah) and not na(a.ah) and f_hc_took(bear, ah, al, a.ah, a.al, smt_sym1_inverse) != c_took
+            bool d2 = smt_sym2_enable_input and smt_sym2_resolved != '' and not na(bh) and not na(a.bh) and f_hc_took(bear, bh, bl, a.bh, a.bl, smt_sym2_inverse) != c_took
+            if d1 or d2
+                m := FgMark.new(a_o = a.o_idx, b_o = b_o, bull = g.bull, ya = g.bull ? a.cl : a.ch, yb = g.bull ? cl : ch)
+    m
+// Saat candle close, sebelum disimpan (A = hist.get(0)): hapus garis yang patah, buang gap mati, simpan SMT Fill (satu per gap)
+f_fg_close(array<int> used, array<HcBar> hist, int b_o, float cc, float ch, float cl, float ah, float al, float bh, float bl) =>
+    if not na(cc) and fg_marks1.size() > 0
+        for i = fg_marks1.size() - 1 to 0
+            FgMark m = fg_marks1.get(i)
+            if m.bull ? cc < math.min(m.ya, m.yb) : cc > math.max(m.ya, m.yb)
+                fg_marks1.remove(i)
+    if fg_gaps1.size() > 0 and hist.size() > 0
+        HcBar a = hist.get(0)
+        for i = fg_gaps1.size() - 1 to 0
+            FgGap g = fg_gaps1.get(i)
+            if g.bull ? cc < g.bot : cc > g.top
+                fg_gaps1.remove(i)
+            else
+                FgMark m = f_fg_eval(g, a, b_o, ch, cl, ah, al, bh, bl)
+                if not na(m)
+                    fg_marks1.push(m)
+                    used.push(g.o3)
+                    fg_gaps1.remove(i)
+        while fg_marks1.size() > 5
+            fg_marks1.shift()
+        while used.size() > 20
+            used.shift()
+    0
+// Setelah candle disimpan: gap baru dari tiga candle tertutup terakhir
+f_fg_newgap(array<HcBar> hist) =>
+    if hist.size() >= 3
+        HcBar c3 = hist.get(0)
+        HcBar c1 = hist.get(2)
+        if not na(c3.cl) and not na(c1.ch) and c3.cl > c1.ch
+            fg_gaps1.push(FgGap.new(true, c3.cl, c1.ch, c3.o_idx))
+        else if not na(c3.ch) and not na(c1.cl) and c3.ch < c1.cl
+            fg_gaps1.push(FgGap.new(false, c1.cl, c3.ch, c3.o_idx))
+        while fg_gaps1.size() > 6
+            fg_gaps1.shift()
+    0
+
+if smt_on and fm_in_win
+    if fm_new_htf and smt_roll_bar != bar_index
+        smt_roll_bar := bar_index
+        if hc_show  // [Mark II i]
+            if fg_show and not na(hc_cur_o) and not na(smt_tc.h)  // [Mark II l] sebelum candle yang tutup disimpan
+                f_fg_close(fg_used1, hc_hist, hc_cur_o, hc_pc, smt_tc.h, smt_tc.l, smt_t1.h, smt_t1.l, smt_t2.h, smt_t2.l)
+            f_hc_close(hc_hist, hc_marks, hc_cur_o, smt_tc, smt_t1, smt_t2)
+            if fg_show  // [Mark II l] sesudahnya: gap baru dari tiga candle tertutup terakhir
+                f_fg_newgap(hc_hist)
+        hc_cur_o := bar_index
+        smt_tc.SmtRoll(high, low)
+        smt_t1.SmtRoll(smt_s1_h, smt_s1_l)
+        smt_t2.SmtRoll(smt_s2_h, smt_s2_l)
+        smt_t3.SmtRoll(smt_s3_h, smt_s3_l)
+    else
+        smt_tc.SmtGrow(high, low)
+        smt_t1.SmtGrow(smt_s1_h, smt_s1_l)
+        smt_t2.SmtGrow(smt_s2_h, smt_s2_l)
+        smt_t3.SmtGrow(smt_s3_h, smt_s3_l)
+    if fmset.has_live_bearish and not fmset.live_bearish.is_invalid
+        f_smt_apply(fmset.live_bearish)
+    if fmset.has_live_bullish and not fmset.live_bullish.is_invalid
+        f_smt_apply(fmset.live_bullish)
+
+// Batas candle HTF2 (HTF2 PSP)
+var bool h2_custom = htf_custom_daily_open and tf_sec <= TF_SEC_60 and QTU.isDailyTf(actual_tf_2)
+bool h2_regular_begins = ta.change(time(actual_tf_2)) != 0
+bool h2_new = h2_custom ? htf_custom_daily_begin : h2_regular_begins
+
+
+
+//==============================================================================
+// [Step 14] PSP (FM) — pada tiap candle HTF1 baru, candle yang baru tutup: warna chart vs tiap simbol aktif
+//==============================================================================
+// Warna berbeda? (harus sama untuk pasangan inverse); doji di salah satu sisi = bukan PSP
+f_psp_div(float co, float cc, float so, float sc, bool inv) =>
+    bool r = false
+    if not na(co) and not na(cc) and not na(so) and not na(sc) and co != cc and so != sc
+        bool cb = cc > co
+        bool sb = sc > so
+        r := inv ? cb == sb : cb != sb
+    r
+var float psp_o0 = na        // open dari candle HTF1 yang berjalan (chart / simbol)
+var float psp_s1_o0 = na
+var float psp_s2_o0 = na
+var float psp_s3_o0 = na
+var int psp_o_idx = na       // bar pertamanya
+var float psp_hi = na        // high-nya (label biasa)
+var int psp_roll_bar = -1
+var array<int> psp_idx = array.new<int>()      // o_idx dari candle PSP
+var array<bool> psp_dir = array.new<bool>()    // [Mark II t] close chart naik (true) / turun dari candle PSP itu
+bool psp_on = psp_show and smt_data_on
+if psp_on and fm_in_win
+    if fm_new_htf and psp_roll_bar != bar_index
+        psp_roll_bar := bar_index
+        if not na(psp_o0) and not na(psp_o_idx)
+            bool hit = f_psp_div(psp_o0, close[1], psp_s1_o0, smt_s1_c[1], smt_sym1_inverse)
+            if smt_sym2_enable_input and not hit
+                hit := f_psp_div(psp_o0, close[1], psp_s2_o0, smt_s2_c[1], smt_sym2_inverse)
+            if smt_sym3_enable_input and not hit
+                hit := f_psp_div(psp_o0, close[1], psp_s3_o0, smt_s3_c[1], smt_sym3_inverse)
+            if hit
+                psp_idx.push(psp_o_idx)
+                psp_dir.push(close[1] > psp_o0)
+                if psp_idx.size() > 200
+                    psp_idx.shift()
+                    psp_dir.shift()
+        psp_o0 := open
+        psp_s1_o0 := smt_s1_o
+        psp_s2_o0 := smt_s2_o
+        psp_s3_o0 := smt_s3_o
+        psp_o_idx := bar_index
+        psp_hi := high
+    else if not na(psp_hi)
+        psp_hi := math.max(psp_hi, high)
+// [Step 56] HTF2 PSP: pada tiap candle HTF2 baru, candle yang baru tutup (warna chart vs tiap simbol aktif)
+var float h2p_o0 = na
+var float h2p_s1_o0 = na
+var float h2p_s2_o0 = na
+var float h2p_s3_o0 = na
+var int h2p_o_idx = na
+var int h2p_roll_bar = -1
+var array<int> h2_psp_idx = array.new<int>()
+var array<bool> h2_psp_dir = array.new<bool>()
+bool h2_psp_on = psp_on and h2_smt_show and htf2_cfg.show
+bool h2c_on = h2c_show and smt_data_on and htf2_cfg.show  // [Mark II ab]
+// [Mark II w] HTF2 PSP pada timeframe HTF2 (request sendiri hanya bila Symbol Data = HTF1 dan HTF2 PSP aktif)
+string h2_req_tf = smt_src_in == 'HTF1' and not h2_custom ? actual_tf_2 : ''
+GetH2Data(string symbol, bool enabled) =>
+    if enabled and fm_in_win and symbol != '' and h2_req_tf != ''
+        request.security(symbol, h2_req_tf, [high, low, open, close], lookahead = barmerge.lookahead_on, ignore_invalid_symbol = true)
+    else
+        [float(na), float(na), float(na), float(na)]
+[h2r_s1_h, h2r_s1_l, h2r_s1_o, h2r_s1_c] = GetH2Data(smt_sym1_resolved, h2_psp_on or h2c_on)
+[h2r_s2_h, h2r_s2_l, h2r_s2_o, h2r_s2_c] = GetH2Data(smt_sym2_resolved, (h2_psp_on or h2c_on) and smt_sym2_enable_input)
+float h2_s1_o = h2_req_tf != '' ? h2r_s1_o : smt_s1_o
+float h2_s1_c = h2_req_tf != '' ? h2r_s1_c : smt_s1_c
+float h2_s2_o = h2_req_tf != '' ? h2r_s2_o : smt_s2_o
+float h2_s2_c = h2_req_tf != '' ? h2r_s2_c : smt_s2_c
+float h2_s1_h = h2_req_tf != '' ? h2r_s1_h : smt_s1_h
+float h2_s1_l = h2_req_tf != '' ? h2r_s1_l : smt_s1_l
+float h2_s2_h = h2_req_tf != '' ? h2r_s2_h : smt_s2_h
+float h2_s2_l = h2_req_tf != '' ? h2r_s2_l : smt_s2_l
+// [Mark II ab] HTF2 Candle SMT: aturan sama dengan HTF1 Candle SMT, pada candle HTF2
+var array<HcBar> h2c_hist = array.new<HcBar>()
+var array<HcMark> h2c_marks = array.new<HcMark>()
+var int h2c_cur_o = na
+var float h2c_ch = na
+var float h2c_cl = na
+var float h2c_ah = na
+var float h2c_al = na
+var float h2c_bh = na
+var float h2c_bl = na
+var int h2c_roll = -1
+if h2c_on and fm_in_win
+    if h2_new and h2c_roll != bar_index
+        h2c_roll := bar_index
+        if not na(h2c_cur_o) and not na(h2c_ch)
+            f_hc_inv(h2c_marks, close[1])
+            if hc_mode == 'Confirmed'
+                for bear in array.from(true, false)
+                    HcMark mk = f_hc_eval_h(h2c_hist, bear, h2c_cur_o, h2c_ch, h2c_cl, h2c_ah, h2c_al, h2c_bh, h2c_bl)
+                    if not na(mk)
+                        h2c_marks.push(mk)
+                while h2c_marks.size() > hc_cap
+                    h2c_marks.shift()
+            h2c_hist.unshift(HcBar.new(o_idx = h2c_cur_o, ch = h2c_ch, cl = h2c_cl, ah = h2c_ah, al = h2c_al, bh = h2c_bh, bl = h2c_bl))
+            while h2c_hist.size() > 3
+                h2c_hist.pop()
+        h2c_cur_o := bar_index
+        h2c_ch := high
+        h2c_cl := low
+        h2c_ah := h2_s1_h
+        h2c_al := h2_s1_l
+        h2c_bh := h2_s2_h
+        h2c_bl := h2_s2_l
+    else if not na(h2c_cur_o)
+        h2c_ch := math.max(h2c_ch, high)
+        h2c_cl := math.min(h2c_cl, low)
+        if not na(h2_s1_h)
+            h2c_ah := na(h2c_ah) ? h2_s1_h : math.max(h2c_ah, h2_s1_h)
+            h2c_al := na(h2c_al) ? h2_s1_l : math.min(h2c_al, h2_s1_l)
+        if not na(h2_s2_h)
+            h2c_bh := na(h2c_bh) ? h2_s2_h : math.max(h2c_bh, h2_s2_h)
+            h2c_bl := na(h2c_bl) ? h2_s2_l : math.min(h2c_bl, h2_s2_l)
+if h2_psp_on and fm_in_win
+    if h2_new and h2p_roll_bar != bar_index
+        h2p_roll_bar := bar_index
+        if not na(h2p_o0) and not na(h2p_o_idx)
+            bool hit = f_psp_div(h2p_o0, close[1], h2p_s1_o0, h2_s1_c[1], smt_sym1_inverse)
+            if smt_sym2_enable_input and not hit
+                hit := f_psp_div(h2p_o0, close[1], h2p_s2_o0, h2_s2_c[1], smt_sym2_inverse)
+            if smt_sym3_enable_input and not hit
+                hit := f_psp_div(h2p_o0, close[1], h2p_s3_o0, smt_s3_c[1], smt_sym3_inverse)
+            if hit
+                h2_psp_idx.push(h2p_o_idx)
+                h2_psp_dir.push(close[1] > h2p_o0)
+                if h2_psp_idx.size() > 50
+                    h2_psp_idx.shift()
+                    h2_psp_dir.shift()
+        h2p_o0 := open
+        h2p_s1_o0 := h2_s1_o
+        h2p_s2_o0 := h2_s2_o
+        h2p_s3_o0 := smt_s3_o
+        h2p_o_idx := bar_index
+f_h2_psp_live() =>
+    h2_psp_on and psp_mode == 'Live' and fm_in_win and not na(h2p_o_idx) and (f_psp_div(h2p_o0, close, h2p_s1_o0, h2_s1_c, smt_sym1_inverse) or (smt_sym2_enable_input and f_psp_div(h2p_o0, close, h2p_s2_o0, h2_s2_c, smt_sym2_inverse)) or (smt_sym3_enable_input and f_psp_div(h2p_o0, close, h2p_s3_o0, smt_s3_c, smt_sym3_inverse)))
+// '+PSP' bila candle HTF1 itu PSP (tag label C)
+f_psp_tag(int oi) =>
+    psp_on and psp_tag and not na(oi) and psp_idx.includes(oi) ? '+PSP' : ''
+// [Step 31] Live PSP: warna candle HTF1 yang berjalan (chart) vs tiap simbol aktif, dari open yang tersimpan
+f_psp_live() =>
+    psp_on and psp_mode == 'Live' and fm_in_win and not na(psp_o_idx) and (f_psp_div(psp_o0, close, psp_s1_o0, smt_s1_c, smt_sym1_inverse) or f_psp_div(psp_o0, close, psp_s2_o0, smt_s2_c, smt_sym2_inverse) or f_psp_div(psp_o0, close, psp_s3_o0, smt_s3_c, smt_sym3_inverse))
+
+// [Mark II t] warna label PSP menurut arah
+f_psp_col(array<int> idxs, array<bool> dirs, int oi) =>
+    int k = idxs.indexof(oi)
+    psp_dir_on and k >= 0 and k < dirs.size() ? (dirs.get(k) ? psp_bull_col : psp_bear_col) : psp_color
+// [Mark II t] Dua tahap: SMT C1 -> C2 plus SMT C2 -> C3 atau PSP di C2 / C3
+f_2s(FmSetup s) =>
+    tag2s_show and s.smt1 and (s.smt2 or (psp_on and (psp_idx.includes(s.htf_candle_idx) or (not na(s.c3_o_idx) and psp_idx.includes(s.c3_o_idx))))) ? ' 2S' : ''
+
+// [Mark II t] Strength Switch (panel HTF1): sisi yang lebih kuat dari tiap candle HTF1 yang tutup dibanding sebelumnya, chart vs simbol 1
+var float ss_ch = na    // candle HTF1 berjalan: high / low / open chart, high / low / open simbol
+var float ss_cl = na
+var float ss_co = na
+var float ss_ah = na
+var float ss_al = na
+var float ss_ao = na
+var float ss_ph = na    // candle tertutup sebelumnya
+var float ss_pl = na
+var float ss_pah = na
+var float ss_pal = na
+var int ss_o_idx = na
+var int ss_n = 0        // jumlah candle HTF1 tertutup yang dihitung
+var int ss_last = 0     // +1 chart lebih kuat (naik), -1 simbol lebih kuat
+var int ss_last_n = na
+var int ss_roll = -1
+var array<int> ss_idx = array.new<int>()
+var array<int> ss_dir = array.new<int>()
+bool ss_on = ss_show and smt_data_on and smt_sym1_resolved != ''
+if ss_on and fm_in_win
+    if fm_new_htf and ss_roll != bar_index
+        ss_roll := bar_index
+        if not na(ss_o_idx) and not na(ss_ch) and not na(ss_ah) and not na(ss_ph) and not na(ss_pah)
+            bool inv = smt_sym1_inverse
+            bool up_c = ss_ch > ss_ph
+            bool dn_c = ss_cl < ss_pl
+            bool up_s = inv ? ss_al < ss_pal : ss_ah > ss_pah
+            bool dn_s = inv ? ss_ah > ss_pah : ss_al < ss_pal
+            int sg = 0
+            if up_c and not up_s
+                sg := 1
+            else if up_s and not up_c
+                sg := -1
+            else if dn_c and not dn_s
+                sg := -1
+            else if dn_s and not dn_c
+                sg := 1
+            else if f_psp_div(ss_co, close[1], ss_ao, smt_s1_c[1], inv)
+                sg := close[1] > ss_co ? 1 : -1
+            ss_n += 1
+            if sg != 0
+                if ss_last != 0 and sg != ss_last and not na(ss_last_n) and ss_n - ss_last_n <= ss_look
+                    ss_idx.push(ss_o_idx)
+                    ss_dir.push(sg)
+                    if ss_idx.size() > 20
+                        ss_idx.shift()
+                        ss_dir.shift()
+                ss_last := sg
+                ss_last_n := ss_n
+        if not na(ss_o_idx)
+            ss_ph := ss_ch
+            ss_pl := ss_cl
+            ss_pah := ss_ah
+            ss_pal := ss_al
+        ss_o_idx := bar_index
+        ss_ch := high
+        ss_cl := low
+        ss_co := open
+        ss_ah := smt_s1_h
+        ss_al := smt_s1_l
+        ss_ao := smt_s1_o
+    else if not na(ss_o_idx)
+        ss_ch := math.max(ss_ch, high)
+        ss_cl := math.min(ss_cl, low)
+        if not na(smt_s1_h)
+            ss_ah := na(ss_ah) ? smt_s1_h : math.max(ss_ah, smt_s1_h)
+            ss_al := na(ss_al) ? smt_s1_l : math.min(ss_al, smt_s1_l)
+        if na(ss_ao)
+            ss_ao := smt_s1_o
+
+//==============================================================================
+// [Mark II af] Fase HTF3 (candle Daily / Weekly vs candle sebelumnya), profil Mang Bob / Gareth:
+// sweep high / low sebelumnya (manipulation) -> kembali ke dalam + CISD -> menembus open / sisi lain (distribution);
+// candle yang mengambilnya dan close di luar dengan body besar = expansion (OHLC / OLHC). Hanya bar terkonfirmasi, chart <= 15m.
+//==============================================================================
+type H3Ph
+    int key
+    int st = 0     // 0 accumulation / di dalam, 1 manipulation, 2 distribution?, 3 distribution, 4 expansion, 5 failed
+    int dir = 0    // +1 = low tersapu (bullish), -1 = high tersapu (bearish)
+    float ext = na // extreme dari sweep
+var array<H3Ph> h3_phs = array.new<H3Ph>()
+var int h3_cur_o = na
+bool h3_fm_ok = cisd_show and fm_valid
+bool h3_ph_ok = h3_show and h3_ph_show and htf3_cfg.show and tf_sec <= 900
+
+// CISD mesin FM ke arah yang diinginkan, dengan C2 yang dibuka sejak candle HTF3 dibuka
+f_h3_cisd(bool bear, int since) =>
+    bool ok = false
+    bool want_bull = not bear
+    bool has_live = want_bull ? fmset.has_live_bullish : fmset.has_live_bearish
+    if has_live
+        FmSetup ls = want_bull ? fmset.live_bullish : fmset.live_bearish
+        if ls.cisd_triggered and not ls.is_invalid and not ls.is_void and ls.htf_candle_idx >= since
+            ok := true
+    for hs in fmset.setups
+        if hs.is_bullish == want_bull and hs.cisd_triggered and not hs.is_invalid and not hs.is_void and hs.htf_candle_idx >= since
+            ok := true
+    ok
+
+f_h3_step(H3Ph s, UDT_HTF_Candle c, UDT_HTF_Candle pv) =>
+    float ph = pv.h
+    float pl = pv.l
+    float op = c.o
+    if s.st == 0
+        bool tk_h = high > ph
+        bool tk_l = low < pl
+        if tk_h and not tk_l
+            s.dir := -1
+            s.ext := high
+            s.st := 1
+        else if tk_l and not tk_h
+            s.dir := 1
+            s.ext := low
+            s.st := 1
+    if s.st == 1
+        bool b1 = s.dir == -1
+        s.ext := b1 ? math.max(s.ext, high) : math.min(s.ext, low)
+        bool opp = b1 ? low < pl : high > ph
+        bool back_in = b1 ? close < ph : close > pl
+        bool cis = h3_fm_ok ? f_h3_cisd(b1, c.o_idx) : true
+        float rg = c.h - c.l
+        bool big_b = rg > 0 and math.abs(c.c - c.o) >= rg * 0.5
+        bool expd = big_b and (b1 ? (c.c > c.o and close > ph) : (c.c < c.o and close < pl))
+        if opp
+            s.st := 3
+        else if expd
+            s.st := 4
+        else if back_in and cis
+            s.st := 2
+    if s.st == 2
+        bool b2 = s.dir == -1
+        if (b2 ? high > s.ext : low < s.ext)
+            s.ext := b2 ? high : low
+            s.st := 1
+        else if (b2 ? (low < pl or close < op) : (high > ph or close > op))
+            s.st := 3
+    else if s.st == 3
+        bool b3 = s.dir == -1
+        if (b3 ? high > s.ext : low < s.ext)
+            s.st := 5
+    s
+
+if h3_ph_ok and barstate.isconfirmed and htf_3_candles.size() > 1
+    UDT_HTF_Candle h3c0 = htf_3_candles.get(0)
+    UDT_HTF_Candle h3c1 = htf_3_candles.get(1)
+    if na(h3_cur_o) or h3c0.o_idx != h3_cur_o
+        h3_cur_o := h3c0.o_idx
+        h3_phs.push(H3Ph.new(key = h3c0.o_idx))
+        while h3_phs.size() > 12
+            h3_phs.shift()
+    H3Ph h3s = h3_phs.last()
+    f_h3_step(h3s, h3c0, h3c1)
+
+//==============================================================================
+// [Step 7] GARIS VERTIKAL — open dari 'Count' candle HTF1 terakhir (batas sama dengan mesin FM)
+//==============================================================================
+var array<int> vl_idx = array.new<int>()
+var array<string> vl_txt = array.new<string>()
+var array<float> vl_hi = array.new<float>()
+var array<float> vl_lo = array.new<float>()
+float vl_bar_rng = ta.sma(high - low, 14)
+var bool vl_dayname = not na(fm_htf_sec) and fm_htf_sec >= 86400 and not fm_custom_daily
+if vl_show and fm_valid
+    if fm_new_htf
+        vl_idx.unshift(bar_index)
+        vl_txt.unshift(vl_dayname ? str.format_time(time_tradingday, 'EEE', 'UTC') : str.format_time(time, 'HH:mm', 'America/New_York'))  // [Mark II g] selalu HH:mm (jam bulat 18:00, bukan 18)
+        vl_hi.unshift(high)
+        vl_lo.unshift(low)
+        while vl_idx.size() > vl_count
+            vl_idx.pop()
+            vl_txt.pop()
+            vl_hi.pop()
+            vl_lo.pop()
+    else if vl_hi.size() > 0
+        vl_hi.set(0, math.max(vl_hi.get(0), high))
+        vl_lo.set(0, math.min(vl_lo.get(0), low))
+
+// [Step 8] HTF Open: open dari candle HTF1 yang berjalan
+var float ho_price = na
+var int ho_idx = na
+var int ho_time = na
+int fm_htf_close = time_close(fm_tf_safe)
+var float ho_hi = na
+var float ho_lo = na
+var float pe_mid = na        // tengah candle HTF1 sebelumnya (Previous EQ melintasi candle berjalan)
+var int pe_src_idx = na      // o_idx dari candle sebelumnya itu
+if fm_valid
+    if fm_new_htf
+        if not na(ho_hi)
+            pe_mid := (ho_hi + ho_lo) / 2.0
+            pe_src_idx := ho_idx
+        ho_price := open
+        ho_idx := bar_index
+        ho_time := time
+        ho_hi := high
+        ho_lo := low
+    else if not na(ho_hi)
+        ho_hi := math.max(ho_hi, high)
+        ho_lo := math.min(ho_lo, low)
+
+// [Step 36] Open Lines: open dari candle terakhir Open TF (terbaru di depan)
+var array<int> ol_idx = array.new<int>()
+var array<float> ol_px = array.new<float>()
+var array<string> ol_txt = array.new<string>()
+bool ol_new = ol_show and (ol_tf == 'HTF1' ? (fm_valid and fm_new_htf) : (timeframe.in_seconds() < 14400 and timeframe.change('240')))
+if ol_new and (ol_idx.size() == 0 or ol_idx.first() != bar_index)
+    ol_idx.unshift(bar_index)
+    ol_px.unshift(open)
+    ol_txt.unshift(str.format_time(time, 'HH:mm', 'America/New_York'))
+    while ol_idx.size() > 5
+        ol_idx.pop()
+        ol_px.pop()
+        ol_txt.pop()
+
+// [Step 37] Daily / Weekly Open
+var int do_idx = na
+var float do_px = na
+var int wo_idx = na
+var float wo_px = na
+bool dw_newday = f_sb_newday(sb_day_h, sb_crypto)
+bool dw_newweek = sb_crypto ? timeframe.change('1W') : (dw_newday and dayofweek(time + (24 - sb_day_h) * 3600000, 'America/New_York') == dayofweek.monday)
+if timeframe.in_seconds() < 86400
+    if dw_newday
+        do_idx := bar_index
+        do_px := open
+    if dw_newweek
+        wo_idx := bar_index
+        wo_px := open
+
+// [Mark II s] Session Levels: high dan low terbaru Asia / London / NY AM / NY PM, tersapu = wick berikutnya melewati level
+type SessLv
+    string name
+    float h = na
+    float l = na
+    int hx = na
+    int lx = na
+    bool done = false
+    int hsw = na
+    int lsw = na
+var array<SessLv> sl_rec = array.new<SessLv>()
+if barstate.isfirst
+    sl_rec.push(SessLv.new('A'))
+    sl_rec.push(SessLv.new('L'))
+    sl_rec.push(SessLv.new('NY AM'))
+    sl_rec.push(SessLv.new('NY PM'))
+bool sl_ok = sl_show and timeframe.isintraday and timeframe.in_seconds() <= 3600
+bool sl_in0 = sl_ok and sl_as_on and not na(time(timeframe.period, sl_as, sl_tz))
+bool sl_in1 = sl_ok and sl_lo_on and not na(time(timeframe.period, sl_lo, sl_tz))
+bool sl_in2 = sl_ok and sl_am_on and not na(time(timeframe.period, sl_am, sl_tz))
+bool sl_in3 = sl_ok and sl_pm_on and not na(time(timeframe.period, sl_pm, sl_tz))
+f_sl_step(SessLv r, bool inNow, bool inPrev) =>
+    if inNow and not inPrev  // sesi baru: menggantikan yang sebelumnya
+        r.h := high
+        r.l := low
+        r.hx := bar_index
+        r.lx := bar_index
+        r.done := false
+        r.hsw := na
+        r.lsw := na
+    else if inNow and not na(r.h)
+        if high > r.h
+            r.h := high
+            r.hx := bar_index
+        if low < r.l
+            r.l := low
+            r.lx := bar_index
+    else if not na(r.h)
+        if inPrev
+            r.done := true
+        if r.done
+            if na(r.hsw) and high > r.h
+                r.hsw := bar_index
+            if na(r.lsw) and low < r.l
+                r.lsw := bar_index
+    0
+if sl_ok
+    f_sl_step(sl_rec.get(0), sl_in0, sl_in0[1])
+    f_sl_step(sl_rec.get(1), sl_in1, sl_in1[1])
+    f_sl_step(sl_rec.get(2), sl_in2, sl_in2[1])
+    f_sl_step(sl_rec.get(3), sl_in3, sl_in3[1])
+
+// Setup live digambar? C2 yang berkembang setelah sweep kembali ke dalam, atau C3.
+f_fm_live_shown(FmSetup s) =>
+    s.cisd_triggered and s.has_cisd and not na(s.cisd_end_idx) and (s.is_confirmed or s.is_post_c2)
+f_fm_cisd_line(FmSetup s) =>
+    line.new(x1 = s.cisd_start_idx, y1 = s.cisd_level, x2 = s.cisd_end_idx + 1, y2 = s.cisd_level, xloc = xloc.bar_index, color = s.is_bullish ? cisd_bull_clr : cisd_bear_clr, style = line.style_solid, width = cisd_line_width)
+// Slot Display Cap: setup 'Display Cap' terbaru yang C2-nya close dengan CISD, C2 terbaru di depan, kedua arah.
+// Setup void / xC2 tetap memegang slotnya (label warna invalid, tanpa garis CISD), sehingga setup lama tidak muncul kembali.
+f_fm_slots() =>
+    array<FmSetup> slots = array.new<FmSetup>()
+    if cisd_show and fm_valid
+        array<FmSetup> cand = array.new<FmSetup>()
+        for is_bull in array.from(false, true)
+            bool has_live = is_bull ? fmset.has_live_bullish : fmset.has_live_bearish
+            if has_live
+                FmSetup ls = is_bull ? fmset.live_bullish : fmset.live_bearish
+                if ls.is_post_c2 and ls.cisd_triggered
+                    cand.push(ls)
+        for hs in fmset.setups
+            if hs.cisd_triggered
+                cand.push(hs)
+        while slots.size() < cisd_display_cap and cand.size() > 0
+            int bi = 0
+            if cand.size() > 1
+                for j = 1 to cand.size() - 1
+                    FmSetup ca = cand.get(j)
+                    FmSetup cb = cand.get(bi)
+                    if ca.htf_candle_idx > cb.htf_candle_idx or (ca.htf_candle_idx == cb.htf_candle_idx and nz(ca.cisd_end_idx) > nz(cb.cisd_end_idx))
+                        bi := j
+            slots.push(cand.remove(bi))
+    slots
+// Garis CISD di chart: slot yang valid, plus CISD yang masih terbentuk di dalam C2 (tidak dihitung)
+f_fm_shown() =>
+    array<FmSetup> shown = array.new<FmSetup>()
+    if cisd_show and fm_valid
+        for is_bull in array.from(false, true)
+            bool has_live = is_bull ? fmset.has_live_bullish : fmset.has_live_bearish
+            if has_live
+                FmSetup ls = is_bull ? fmset.live_bullish : fmset.live_bearish
+                if not ls.is_post_c2 and f_fm_live_shown(ls)
+                    shown.push(ls)
+        for sl in f_fm_slots()
+            if not sl.is_invalid and not sl.is_void and sl.has_cisd and not na(sl.cisd_end_idx)
+                shown.push(sl)
+    shown
+// [Step 16] Early CISD (chart): hanya bar berjalan; setup live yang CISD-nya belum terhitung
+f_fm_draw_early() =>
+    if cisd_show and cisd_early_show and fm_valid and not barstate.isconfirmed
+        for is_bull in array.from(false, true)
+            bool has_live = is_bull ? fmset.has_live_bullish : fmset.has_live_bearish
+            if has_live
+                FmSetup ls = is_bull ? fmset.live_bullish : fmset.live_bearish
+                if not ls.is_invalid and not ls.c3c and ls.rs_ok and ls.has_cisd and not ls.cisd_triggered and not na(ls.cisd_level) and not na(ls.cisd_start_idx)
+                    bool through = is_bull ? close > ls.cisd_level : close < ls.cisd_level
+                    bool inside = ls.is_post_c2 or (is_bull ? close > ls.sweep_price : close < ls.sweep_price)
+                    if through and inside
+                        bin.bin_ln.push(line.new(x1 = ls.cisd_start_idx, y1 = ls.cisd_level, x2 = bar_index + 1, y2 = ls.cisd_level, xloc = xloc.bar_index, color = is_bull ? cisd_bull_clr : cisd_bear_clr, style = cisd_early_line_style, width = cisd_early_line_width))
+    0
+f_fm_draw_cisd() =>
+    for sh in f_fm_shown()
+        bin.bin_ln.push(f_fm_cisd_line(sh))
+        // [Step 13] IC-CISD dari setup ini
+        if fm_ic_show and not na(sh.ic_list) and na(sh.c2_brk_idx)  // [Mark II d] tidak ada IC-CISD setelah C2 diambil
+            for ic in sh.ic_list
+                color ic_col = ic.taken ? color.gray : (sh.is_bullish ? cisd_bull_clr : cisd_bear_clr)
+                bin.bin_ln.push(line.new(x1 = ic.start_idx, y1 = ic.level, x2 = ic.end_idx, y2 = ic.level, xloc = xloc.bar_index, color = ic_col, style = line.style_solid, width = cisd_line_width))
+                bin.bin_lbl.push(label.new(x = ic.ext_idx, y = ic.ext_px, text = '●', xloc = xloc.bar_index, style = sh.is_bullish ? label.style_label_up : label.style_label_down, color = color.new(color.white, 100), textcolor = ic_col, size = fm_ic_dot))
+    0
+
+// Label C. Chart: pada bar wick tiap candle; titik yang sama dua kali (C2 satu setup = C1 setup berikutnya) -> satu label 'C2/C1'.
+f_fm_lbl_x_size() =>  // [Mark II e] x merah satu ukuran lebih besar dari label C
+    fm_lbl_size == size.tiny ? size.small : fm_lbl_size == size.small ? size.normal : size.large
+f_fm_lbl(int x, float y, string txt, bool bull, bool inv) =>
+    label.new(x = x, y = y, text = txt, xloc = xloc.bar_index, yloc = yloc.price, style = bull ? label.style_label_up : label.style_label_down, color = color.new(color.white, 100), textcolor = inv ? fm_lbl_invalid : fm_lbl_valid, size = str.startswith(txt, '✕') ? f_fm_lbl_x_size() : fm_lbl_size, text_font_family = global_font_family)
+f_fm_lbl_add(array<string> keys, array<label> lbls, int x, float y, string txt, bool bull, bool inv) =>
+    if not na(x) and not na(y)
+        string k = str.tostring(x) + '|' + str.tostring(y)
+        int found = keys.indexof(k)
+        if found >= 0
+            label ex = lbls.get(found)
+            label.set_text(ex, label.get_text(ex) + '/' + txt)
+            if inv
+                label.set_textcolor(ex, fm_lbl_invalid)
+        else
+            label nl = f_fm_lbl(x, y, txt, bull, inv)
+            bin.bin_lbl.push(nl)
+            keys.push(k)
+            lbls.push(nl)
+    0
+// T-Spot ada di chart? (slot valid; kotak C4 pindah ke xC4)
+f_fm_ts3_on(FmSetup s) =>
+    not s.is_invalid and not s.is_void and na(s.c2_brk_idx) and not na(s.ts3) and not na(s.c3_o_idx)
+f_fm_ts4_on(FmSetup s) =>
+    not s.is_invalid and not s.is_void and na(s.c2_brk_idx) and not s.c4_invalid and not na(s.ts4) and not na(s.c4_o_idx)
+f_fm_ts_box(int x1, int x2, FmTSpot t, string nm) =>
+    if x2 > x1
+        if fm_ez_show
+            bin.bin_box.push(box.new(left = x1, top = t.top, right = x2, bottom = t.bot, xloc = xloc.bar_index, border_color = color.new(color.white, 100), border_width = 0, bgcolor = t.bull ? fm_ez_bull : fm_ez_bear))
+    0
+// Kotak T-Spot (chart): C3 dari open C3, C4 dari open C4; tepi kanan = bar berjalan, lalu akhir candle
+f_fm_draw_tspot() =>
+    if fm_ez_show
+        for sl in f_fm_slots()
+            if f_fm_ts3_on(sl)
+                f_fm_ts_box(sl.c3_o_idx, na(sl.c4_o_idx) ? bar_index + 1 : sl.c4_o_idx, sl.ts3, 'C3 T-Spot')
+            if f_fm_ts4_on(sl)
+                f_fm_ts_box(sl.c4_o_idx, na(sl.c4_end_x) ? bar_index + 1 : sl.c4_end_x, sl.ts4, 'C4 T-Spot')
+    0
+// Garis vertikal (chart): low terendah -> high tertinggi candle itu; teks 'Text Offset' bar di atas; ▾ = open C2 dari setup di slot
+f_draw_vlines() =>
+    if vl_show and fm_valid and vl_idx.size() > 0
+        float top = vl_hi.max()
+        float bot = vl_lo.min()
+        float y = top + vl_txt_off * nz(vl_bar_rng, 0)
+        array<int> c2_opens = array.new<int>()
+        for sl in f_fm_slots()
+            c2_opens.push(sl.htf_candle_idx)
+        int last_x = na
+        for i = 0 to vl_idx.size() - 1
+            int x = vl_idx.get(i)
+            bin.bin_ln.push(line.new(x1 = x, y1 = bot, x2 = x, y2 = top, xloc = xloc.bar_index, extend = extend.none, color = vl_color, style = line.style_solid, width = 1))
+            bool c2o = c2_opens.includes(x)
+            if i == 0 or c2o or na(last_x) or last_x - x >= vl_gap  // [Step 66] lewati label yang terlalu dekat dengan yang terakhir ditampilkan
+                last_x := x
+                string t = vl_txt.get(i) + (c2o ? ' ▾' : '')
+                bin.bin_lbl.push(label.new(x = x, y = y, text = t, xloc = xloc.bar_index, yloc = yloc.price, style = label.style_label_down, color = color.new(color.white, 100), textcolor = vl_txt_color, size = vl_size, text_font_family = global_font_family))
+    0
+// HTF Open (panggil setelah panel HTF1 diposisikan): bar pertama candle HTF1 berjalan -> candle panelnya
+f_dw_line(int x0, float y, string txt) =>  // [Step 37]
+    if not na(x0) and not na(y)
+        int x1 = math.max(x0, bar_index - 4900)
+        int x2 = bar_index + 12
+        bin.bin_ln.push(line.new(x1 = x1, y1 = y, x2 = x2, y2 = y, xloc = xloc.bar_index, color = dw_color, style = line.style_dashed, width = 1))
+        bin.bin_lbl.push(label.new(x = x2, y = y, text = txt, xloc = xloc.bar_index, style = label.style_label_left, color = color.new(color.white, 100), textcolor = dw_color, size = size.tiny, text_font_family = global_font_family))
+    0
+// [Step 45] HTF Open (panggil setelah panel HTF1 diposisikan): bar pertama candle HTF1 berjalan -> candle panelnya
+f_draw_htf1_open() =>
+    if ho_show and fm_valid and not na(ho_price) and not na(ho_idx)
+        int x2 = bar_index + 1
+        if htf1_cfg.show and htf_1_candles.size() > 0
+            UDT_HTF_Candle pc = htf_1_candles.first()
+            if not na(pc.candle_left) and pc.o_idx == ho_idx
+                x2 := pc.candle_left
+        if x2 > ho_idx
+            bin.bin_ln.push(line.new(x1 = ho_idx, y1 = ho_price, x2 = x2, y2 = ho_price, xloc = xloc.bar_index, color = ho_color, style = ho_style, width = ho_width))
+    0
+f_draw_htf_open() =>  // [Step 36] Open Lines (menggantikan garis HTF Open)
+    if dw_d_show
+        f_dw_line(do_idx, do_px, 'D Open')
+    if dw_w_show
+        f_dw_line(wo_idx, wo_px, 'W Open')
+    if ol_show and ol_idx.size() > 0
+        int n = math.min(ol_count, ol_idx.size())
+        for k = 0 to n - 1
+            int x1 = ol_idx.get(k)
+            int x2 = k <= 1 ? bar_index + 3 : ol_idx.get(k - 2)
+            float y = ol_px.get(k)
+            if x1 >= bar_index - 4900 and x2 > x1
+                color c = k == 0 ? ol_color : color.new(ol_color, 55)
+                bin.bin_ln.push(line.new(x1 = x1, y1 = y, x2 = x2, y2 = y, xloc = xloc.bar_index, color = c, style = k == 0 ? line.style_solid : line.style_dotted, width = ol_width))
+                bin.bin_lbl.push(label.new(x = x2, y = y, text = ol_txt.get(k), xloc = xloc.bar_index, style = label.style_label_left, color = color.new(color.white, 100), textcolor = c, size = size.tiny, text_font_family = global_font_family))
+    0
+// [Step 11] Garis SMT (chart): setup dengan slot Display Cap, bukan xC2
+f_smt_style() =>
+    smt_line_style_input == 'Dashed' ? line.style_dashed : smt_line_style_input == 'Dotted' ? line.style_dotted : line.style_solid
+f_smt_size() =>
+    smt_label_size_input == 'Tiny' ? size.tiny : smt_label_size_input == 'Normal' ? size.normal : smt_label_size_input == 'Large' ? size.large : size.small
+f_smt_mark(int x1, float y1, int x2, float y2, string nm, bool bull, bool pane = false) =>
+    color smc = pane ? smt_pane_color_input : smt_color_input  // [Step 46]
+    if not na(x1) and not na(x2) and not na(y1) and not na(y2)
+        bin.bin_ln.push(line.new(x1 = x1, y1 = y1, x2 = x2, y2 = y2, xloc = xloc.bar_index, color = smc, style = f_smt_style(), width = smt_line_width_input))
+        if pane ? smt_lbl_pane : smt_lbl_chart  // [Step 50]
+            bin.bin_lbl.push(label.new(x = int(math.round((x1 + x2) / 2)), y = (y1 + y2) / 2.0, text = smt_n_active == 1 ? 'SMT' : nm, xloc = xloc.bar_index, style = bull ? label.style_label_up : label.style_label_down, color = color.new(color.white, 100), textcolor = smc, size = f_smt_size(), text_font_family = global_font_family))
+    0
+// [Step 28] SMT C1 -> C2 berjalan: setup live selama C2 berjalan (swing relevan valid, divergensi saat ini)
+f_smt_live() =>
+    array<FmSetup> out = array.new<FmSetup>()
+    if smt_on
+        for is_bull in array.from(false, true)
+            bool has_live = is_bull ? fmset.has_live_bullish : fmset.has_live_bearish
+            if has_live
+                FmSetup ls = is_bull ? fmset.live_bullish : fmset.live_bearish
+                if not ls.is_post_c2 and not ls.c3c and ls.rs_ok and not ls.is_invalid and ls.smt1
+                    out.push(ls)
+    out
+f_draw_smt() =>
+    if smt_on and smt_chart
+        for ls in f_smt_live()
+            f_smt_mark(ls.smt1_x1, ls.smt1_y1, ls.smt1_x2, ls.smt1_y2, ls.smt1_sym, ls.is_bullish)
+        for sl in f_fm_slots()
+            if not sl.is_invalid
+                if sl.smt1
+                    f_smt_mark(sl.smt1_x1, sl.smt1_y1, sl.smt1_x2, sl.smt1_y2, sl.smt1_sym, sl.is_bullish)
+                if sl.smt2
+                    f_smt_mark(sl.smt2_x1, sl.smt2_y1, sl.smt2_x2, sl.smt2_y2, sl.smt2_sym, sl.is_bullish)
+    0
+// [Step 18] Sweep line di chart dari setup FM: high / low C1 -> open C3 (bar berjalan selama C2 berjalan)
+f_fm_sweep_ln(FmSetup s) =>
+    if not na(s.c1_idx) and not na(s.sweep_price)
+        int x2 = na(s.c3_o_idx) ? bar_index + 1 : s.c3_o_idx
+        if x2 > s.c1_idx
+            f_idx_ln(s.c1_idx, s.sweep_price, x2, s.sweep_price, htf_sweep_color, line.style_solid)
+    0
+f_draw_fm_sweeps() =>
+    if fm_sweep_show and cisd_show and fm_valid
+        array<int> seen = array.new<int>()
+        for sl in f_fm_slots()
+            if not seen.includes(sl.c1_idx)
+                seen.push(sl.c1_idx)
+                f_fm_sweep_ln(sl)
+        for is_bull in array.from(false, true)
+            bool has_live = is_bull ? fmset.has_live_bullish : fmset.has_live_bearish
+            if has_live
+                FmSetup ls = is_bull ? fmset.live_bullish : fmset.live_bearish
+                if not ls.is_post_c2 and not ls.c3c and ls.rs_ok and not seen.includes(ls.c1_idx)
+                    seen.push(ls.c1_idx)
+                    f_fm_sweep_ln(ls)
+    0
+f_fm_draw_labels() =>
+    if fm_lbl_chart
+        array<string> keys = array.new<string>()
+        array<label> lbls = array.new<label>()
+        for sl in f_fm_slots()
+            bool b = sl.is_bullish
+            // [Step 67] tidak ada label C1 di chart (hanya di panel)
+            if fm_lbl_c2
+                bool c2x = sl.is_invalid or not na(sl.c2_brk_idx)  // [Mark II c] xC2 atau protected swing diambil belakangan -> x merah
+                f_fm_lbl_add(keys, lbls, sl.extreme_bar_idx, sl.tracked_extreme, c2x ? '✕' : 'C2' + f_psp_tag(sl.htf_candle_idx) + f_2s(sl), b, c2x)
+            if fm_lbl_c3 and not sl.is_invalid and na(sl.c2_brk_idx)  // [Mark II f/k] hanya x merah setelah C2 diambil (termasuk xC2)
+                if f_fm_ts3_on(sl)
+                    f_fm_lbl_add(keys, lbls, sl.c3_o_idx + 1, b ? sl.ts3.bot : sl.ts3.top, (sl.c3c_ok ? 'C3c' : 'C3') + f_psp_tag(sl.c3_o_idx), b, false)
+                else
+                    f_fm_lbl_add(keys, lbls, sl.c3_ext_idx, sl.c3_ext, (sl.c3c_ok ? 'C3c' : 'C3') + f_psp_tag(sl.c3_o_idx), b, sl.is_invalid or sl.is_void)
+            if fm_lbl_c4 and not sl.is_invalid and na(sl.c2_brk_idx)
+                if f_fm_ts4_on(sl)
+                    f_fm_lbl_add(keys, lbls, sl.c4_o_idx + 1, b ? sl.ts4.bot : sl.ts4.top, 'C4' + f_psp_tag(sl.c4_o_idx), b, false)
+                else
+                    f_fm_lbl_add(keys, lbls, sl.c4_ext_idx, sl.c4_ext, 'C4' + f_psp_tag(sl.c4_o_idx), b, sl.c4_invalid)
+    0
+// Panel: pada wick candle panel HTF1 yang cocok (panggil setelah panel HTF1 diposisikan)
+f_fm_draw_pane_labels() =>
+    array<int> tagged = array.new<int>()
+    if fm_lbl_show and fm_lbl_pane and htf1_cfg.show and htf_1_candles.size() > 0
+        for sl in f_fm_slots()
+            for k = 0 to 3
+                bool on = k == 0 ? fm_lbl_c1 : k == 1 ? fm_lbl_c2 : k == 2 ? fm_lbl_c3 : fm_lbl_c4
+                int oi = k == 0 ? nz(sl.rs_o_idx, sl.swept_o_idx) : k == 1 ? sl.htf_candle_idx : k == 2 ? sl.c3_o_idx : sl.c4_o_idx
+                bool has_stage = k < 2 or (not sl.is_invalid and na(sl.c2_brk_idx) and (k == 2 ? not na(sl.c3_ext) : not na(sl.c4_ext)))  // [Mark II f] tanpa C3 / C4 setelah C2 diambil
+                if on and has_stage and not na(oi)
+                    bool c2x = k == 1 and (sl.is_invalid or not na(sl.c2_brk_idx))  // [Mark II c] x merah menggantikan C2
+                    bool inv = c2x or (k == 2 ? (sl.is_invalid or sl.is_void) : k == 3 ? sl.c4_invalid : false)
+                    for c in htf_1_candles
+                        if c.o_idx == oi and not na(c.wick_x)
+                            string tg = k > 0 ? f_psp_tag(oi) : ''
+                            bin.bin_lbl.push(f_fm_lbl(c.wick_x, sl.is_bullish ? c.l : c.h, c2x ? '✕' : 'C' + str.tostring(k + 1) + (k == 2 and sl.c3c_ok ? 'c' : '') + tg + (k == 1 ? f_2s(sl) : ''), sl.is_bullish, inv))
+                            if tg != ''
+                                tagged.push(oi)
+                            break
+    tagged
+// [Step 14] PSP di atas wick candle panel HTF1 (dilewati bila label C sudah berbunyi +PSP)
+f_draw_pane_psp(array<int> tagged) =>
+    if psp_on and psp_proj and htf1_cfg.show and htf_1_candles.size() > 0
+        for c in htf_1_candles
+            if not na(c.wick_x) and psp_idx.includes(c.o_idx) and not tagged.includes(c.o_idx)
+                bin.bin_lbl.push(label.new(x = c.wick_x, y = c.h, text = 'PSP', xloc = xloc.bar_index, style = label.style_label_down, color = color.new(color.white, 100), textcolor = f_psp_col(psp_idx, psp_dir, c.o_idx), size = psp_size, text_font_family = global_font_family))
+    if f_psp_live() and htf1_cfg.show and htf_1_candles.size() > 0  // [Step 31b] Live PSP: hanya panel HTF1, tidak tergantung Show on HTF1 Pane
+        for c in htf_1_candles
+            if c.o_idx == psp_o_idx and not na(c.wick_x)
+                bin.bin_lbl.push(label.new(x = c.wick_x, y = c.h, text = 'PSP', xloc = xloc.bar_index, style = label.style_label_down, color = color.new(color.white, 100), textcolor = psp_live_col, size = psp_size, text_font_family = global_font_family))
+                break
+    0
+
+// Sumber 'On-chart CISD' SD Projections: CISD di chart dengan pemicu terbaru
+// Previous EQ (chart): tengah C2 dari open C3, tengah C3 dari open C4; tepi kanan = bar berjalan, lalu akhir candle
+f_fm_eq_ln(int x1, float y, int x2, color clr) =>
+    bin.bin_ln.push(line.new(x1 = x1, y1 = y, x2 = x2, y2 = y, xloc = xloc.bar_index, color = clr, style = fm_eq_style, width = fm_eq_width))
+// EQ candle berjalan sudah digambar oleh suatu setup (tengah C2 di C3 / tengah C3 di C4)?
+// Indeks bar akhir candle HTF1 yang berjalan (garis vertikal berikutnya), diproyeksikan dengan timeframe chart
+f_run_end_x() =>
+    int et = fm_custom_daily ? ho_time + fm_htf_sec * 1000 : fm_htf_close
+    na(et) ? bar_index + 1 : bar_index + math.min(500, math.max(1, int(math.round((et - time) / (tf_sec * 1000.0)))))
+f_pe_dup() =>
+    bool dup = false
+    for sl in f_fm_slots()
+        if not sl.is_invalid and not sl.is_void and na(sl.c2_brk_idx) and ((sl.c3_o_idx == ho_idx and not na(sl.c2_mid)) or (sl.c4_o_idx == ho_idx and not na(sl.c3_mid)))
+            dup := true
+    dup
+f_fm_draw_eq() =>
+    if fm_eq_show and fm_eq_where != 'Pane'
+        for sl in f_fm_slots()
+            if not sl.is_invalid and not sl.is_void and na(sl.c2_brk_idx)  // [Mark II d] tidak ada Previous EQ setelah C2 diambil
+                if not na(sl.c2_mid) and not na(sl.c3_o_idx)
+                    int x2 = na(sl.c4_o_idx) ? f_run_end_x() : sl.c4_o_idx
+                    if x2 > sl.c3_o_idx
+                        f_fm_eq_ln(sl.c3_o_idx, sl.c2_mid, x2, fm_eq_color)
+                if not na(sl.c3_mid) and not na(sl.c4_o_idx)
+                    int x2 = sl.c4_invalid ? sl.c4_inv_idx : na(sl.c4_end_x) ? f_run_end_x() : sl.c4_end_x
+                    if not na(x2) and x2 > sl.c4_o_idx
+                        f_fm_eq_ln(sl.c4_o_idx, sl.c3_mid, x2, sl.c4_invalid ? fm_lbl_invalid : fm_eq_color)
+    if fm_eq_show and fm_eq_where != 'Pane' and fm_valid and not na(pe_mid) and not na(ho_idx) and not f_pe_dup()
+        f_fm_eq_ln(ho_idx, pe_mid, f_run_end_x(), fm_eq_color)
+    0
+// Previous EQ (panel HTF1): wick candle sebelumnya -> akhir candle + 2 bar
+f_fm_pane_candle(int oi) =>
+    UDT_HTF_Candle found = na
+    if not na(oi)
+        for c in htf_1_candles
+            if c.o_idx == oi
+                found := c
+                break
+    found
+// [Step 27 / 69] Garis sweep panel (hanya bar terakhir), HTF1 dan HTF2 sama: sweep terbaru dari candle panel (sebuah candle mengambil
+// high / low candle sebelumnya dan close kembali ke dalam; hilang setelah candle berikutnya close di luarnya), dari wick
+// yang disapu ke candle berjalan + 2 bar, label = timeframe panel. Satu garis per panel.
+f_pane_sweep(array<UDT_HTF_Candle> cs, string tfl) =>
+    int n = cs.size()
+    if n > 1
+        UDT_HTF_Candle rc = cs.get(0)
+        bool done = false
+        for i = 1 to n - 1  // indeks 0 = candle berjalan; pasangan terbaru di depan
+            if done
+                break
+            UDT_HTF_Candle c1 = cs.get(i)
+            UDT_HTF_Candle c2 = cs.get(i - 1)
+            for k = 0 to 1
+                if done
+                    break
+                bool hi = k == 0
+                float lvl = hi ? c1.h : c1.l
+                bool swept = hi ? (c2.h > c1.h and c2.c < c1.h) : (c2.l < c1.l and c2.c > c1.l)
+                if swept and i >= 2
+                    for j = 0 to i - 2  // candle berikutnya close (atau berada) di luar level -> hilang
+                        float cc = cs.get(j).c
+                        if hi ? cc > lvl : cc < lvl
+                            swept := false
+                            break
+                if swept and not na(c1.wick_x) and not na(rc.candle_rigth)
+                    int x2 = math.max(rc.candle_rigth + 2, c1.wick_x + 1)
+                    f_idx_ln(c1.wick_x, lvl, x2, lvl, htf_sweep_color, line.style_solid)
+                    bin.bin_lbl.push(label.new(x = x2, y = lvl, text = tfl, xloc = xloc.bar_index, style = label.style_label_left, color = color.new(color.white, 100), textcolor = global_text_color, size = size.tiny, text_font_family = global_font_family))
+                    done := true
+    0
+f_draw_pane_sweeps() =>
+    if pane_sweep_show and htf1_cfg.show
+        f_pane_sweep(htf_1_candles, f_htf_label(actual_tf_1, false))
+    if pane_sweep_show and htf2_cfg.show
+        f_pane_sweep(htf_2_candles, f_htf_label(actual_tf_2, false))
+    0
+// [Step 52] Panel HTF1: high dan low candle tertutup terakhir, dari wick-nya ke tepi kanan candle berjalan + 2 bar
+// (tetap sebagai referensi juga saat candle berjalan menembusnya). Toggle Pane Sweep, warna Sweep Line.
+f_draw_pane_last(array<UDT_HTF_Candle> cs, bool pane_on) =>  // [Step 52c] HTF1 dan HTF2
+    if pane_last_show and pane_on and cs.size() > 1
+        UDT_HTF_Candle pc = cs.get(1)
+        UDT_HTF_Candle rc = cs.get(0)
+        if not na(pc.wick_x) and not na(rc.candle_rigth)
+            int x2 = math.max(rc.candle_rigth + 2, pc.wick_x + 1)
+            f_idx_ln(pc.wick_x, pc.h, x2, pc.h, htf_sweep_color, line.style_solid)
+            f_idx_ln(pc.wick_x, pc.l, x2, pc.l, htf_sweep_color, line.style_solid)
+    0
+// [Mark II aa] Key Levels (dari Mark I): high tertinggi / low terendah candle panel tertinggi yang tampil, garis chart dengan -TF / +TF
+f_draw_key_levels() =>
+    if key_levels_show
+        int s1 = f_htf_seconds(actual_tf_1)
+        int s2 = f_htf_seconds(actual_tf_2)
+        bool use2 = htf2_cfg.show and not na(s2) and (not htf1_cfg.show or na(s1) or s2 > s1)
+        bool use1 = not use2 and htf1_cfg.show and not na(s1)
+        if use1 or use2
+            array<UDT_HTF_Candle> cs = use2 ? htf_2_candles : htf_1_candles
+            string tfn = f_htf_label(use2 ? actual_tf_2 : actual_tf_1, false)
+            float hi = na
+            float lo = na
+            int hx = na
+            int lx = na
+            for c in cs
+                if not na(c.h) and not na(c.l)
+                    if na(hi) or c.h > hi
+                        hi := c.h
+                        hx := c.h_idx
+                    if na(lo) or c.l < lo
+                        lo := c.l
+                        lx := c.l_idx
+            int x2 = bar_index + 10
+            for k = 0 to 1
+                float y = k == 0 ? hi : lo
+                int x0 = k == 0 ? hx : lx
+                if not na(y) and not na(x0)
+                    int x1 = math.max(x0, bar_index - 4900)
+                    if x2 > x1
+                        f_idx_ln(x1, y, x2, y, key_levels_line_color, key_levels_line_style)
+                        bin.bin_lbl.push(label.new(x = x2, y = y, text = (k == 0 ? '-' : '+') + tfn, xloc = xloc.bar_index, style = label.style_label_left, color = color.new(color.white, 100), textcolor = global_text_color, size = size.tiny, text_font_family = global_font_family))
+    0
+// [Mark II s] Session Levels (chart): belum tersapu = sampai 10 bar setelah bar terakhir, nama di kanan; tersapu = berhenti di bar penyapu, nama di ujung
+f_draw_sl() =>
+    if sl_ok
+        array<bool> on = array.from(sl_as_on, sl_lo_on, sl_am_on, sl_pm_on)
+        for i = 0 to 3
+            SessLv r = sl_rec.get(i)
+            if on.get(i) and not na(r.h)
+                for k = 0 to 1
+                    float y = k == 0 ? r.h : r.l
+                    int sw = k == 0 ? r.hsw : r.lsw
+                    bool swept = not na(sw)
+                    int x1 = math.max(k == 0 ? r.hx : r.lx, bar_index - 4900)
+                    int x2 = swept ? sw : bar_index + 10
+                    if x2 > x1
+                        bin.bin_ln.push(line.new(x1 = x1, y1 = y, x2 = x2, y2 = y, xloc = xloc.bar_index, color = sl_ln_col, style = swept ? sl_sw_st : sl_un_st, width = sl_width))
+                        if not swept or sl_sw_lbl  // [Mark II y] tersapu: nama di awal garis, di atas high / di bawah low
+                            bin.bin_lbl.push(label.new(x = swept ? x1 : x2, y = y, text = r.name, xloc = xloc.bar_index, style = swept ? (k == 0 ? label.style_label_down : label.style_label_up) : label.style_label_left, color = color.new(color.white, 100), textcolor = sl_lb_col, size = size.tiny, text_font_family = global_font_family))
+    0
+// [Mark II t] Label Strength Switch di bawah candle panel HTF1: SS ▲ chart kini lebih kuat, SS ▼ simbol kini lebih kuat
+f_draw_ss() =>
+    if ss_on and htf1_cfg.show and ss_idx.size() > 0
+        for c in htf_1_candles
+            int k = ss_idx.indexof(c.o_idx)
+            if k >= 0 and not na(c.wick_x)
+                bin.bin_lbl.push(label.new(x = c.wick_x, y = c.l, text = ss_dir.get(k) > 0 ? 'SS ▲' : 'SS ▼', xloc = xloc.bar_index, yloc = yloc.price, style = label.style_label_up, color = color.new(color.white, 100), textcolor = ss_col, size = psp_size, text_font_family = global_font_family))
+    0
+f_draw_7h_sessions() =>  // [Mark II o/r/ad] waktu open (New York) di bawah candle panel HTF2: 7H = 18:00 / 01:00 / 08:00 (candle pendek 15:00 tidak ada); 4H dan 6H = setiap candle
+    int s2 = f_htf_seconds(actual_tf_2)
+    bool tl2 = actual_tf_2 == TF_7H or (h2t_show and not na(s2) and (s2 == 14400 or s2 == 21600))  // [Mark II ad/ag] 4H / 6H mendapat label waktu yang sama seperti 7H (toggle)
+    if tl2 and htf2_cfg.show and htf_2_candles.size() > 0
+        float ymin = na
+        float ymax = na
+        for c in htf_2_candles
+            ymin := na(ymin) ? c.l : math.min(ymin, c.l)
+            ymax := na(ymax) ? c.h : math.max(ymax, c.h)
+        float ty = ymin - QTU.labelPad(ymax, ymin, syminfo.mintick)  // [Mark II ag] satu baris di bawah low terendah
+        for c in htf_2_candles
+            int chr = na(c.ot) ? na : hour(c.ot, 'America/New_York')
+            bool short7 = actual_tf_2 == TF_7H and (chr == 15 or chr == 14)  // [Mark II r] hanya 7H: tanpa label pada candle pendek 15:00 (forex 14:00)
+            if not na(c.wick_x) and not na(c.ot) and not short7
+                bin.bin_lbl.push(label.new(x = c.wick_x, y = ty, text = str.format_time(c.ot, actual_tf_2 == TF_7H ? 'HH:mm' : 'HH', 'America/New_York'), xloc = xloc.bar_index, yloc = yloc.price, style = label.style_label_up, color = color.new(color.white, 100), textcolor = global_text_color, size = size.tiny, text_font_family = global_font_family))
+    0
+f_fm_draw_pane_eq() =>
+    if fm_eq_show and fm_eq_where != 'Chart' and htf1_cfg.show and htf_1_candles.size() > 0
+        for sl in f_fm_slots()
+            if not sl.is_invalid and not sl.is_void and na(sl.c2_brk_idx)  // [Mark II d] tidak ada Previous EQ setelah C2 diambil
+                if not na(sl.c2_mid)
+                    UDT_HTF_Candle pc = f_fm_pane_candle(sl.htf_candle_idx)
+                    UDT_HTF_Candle nc = f_fm_pane_candle(sl.c3_o_idx)
+                    if not na(pc) and not na(nc) and not na(pc.wick_x) and not na(nc.candle_rigth)
+                        f_fm_eq_ln(pc.wick_x, sl.c2_mid, nc.candle_rigth + 2, fm_eq_color)
+                if not na(sl.c3_mid)
+                    UDT_HTF_Candle pc = f_fm_pane_candle(sl.c3_o_idx)
+                    UDT_HTF_Candle nc = f_fm_pane_candle(sl.c4_o_idx)
+                    if not na(pc) and not na(nc) and not na(pc.wick_x) and not na(nc.candle_rigth)
+                        f_fm_eq_ln(pc.wick_x, sl.c3_mid, nc.candle_rigth + 2, sl.c4_invalid ? fm_lbl_invalid : fm_eq_color)
+    if fm_eq_show and fm_eq_where != 'Chart' and htf1_cfg.show and fm_valid and not na(pe_mid) and not f_pe_dup()
+        UDT_HTF_Candle pc = f_fm_pane_candle(pe_src_idx)
+        UDT_HTF_Candle nc = f_fm_pane_candle(ho_idx)
+        if not na(pc) and not na(nc) and not na(pc.wick_x) and not na(nc.candle_rigth)
+            f_fm_eq_ln(pc.wick_x, pe_mid, nc.candle_rigth + 2, fm_eq_color)
+    0
+// [Mark II z] Expansion EQ (panel HTF1): candle ekspansi terbaru (body >= setengah range, close di luar candle sebelumnya), sampai ada close di luar EQ-nya
+f_draw_xeq() =>
+    int n = htf_1_candles.size()
+    if xeq_show and htf1_cfg.show and n > 2
+        UDT_HTF_Candle rc = htf_1_candles.get(0)
+        bool done = false
+        for i = 1 to n - 2
+            if done
+                break
+            UDT_HTF_Candle c = htf_1_candles.get(i)
+            UDT_HTF_Candle pv = htf_1_candles.get(i + 1)
+            float rng = c.h - c.l
+            bool big = rng > 0 and math.abs(c.c - c.o) >= rng * 0.5
+            bool bull = c.c > c.o and c.c > pv.h
+            bool bear = c.c < c.o and c.c < pv.l
+            if big and (bull or bear)
+                done := true
+                float eq = (c.h + c.l) / 2.0
+                bool alive = true
+                if i > 1
+                    for j = 1 to i - 1
+                        float cc = htf_1_candles.get(j).c
+                        if bull ? cc < eq : cc > eq
+                            alive := false
+                            break
+                bool dup = i == 1 and fm_eq_show and fm_eq_where != 'Chart'
+                UDT_HTF_Candle nc = htf_1_candles.get(i - 1)  // [Mark II z2] panjang sama dengan Previous EQ: sampai candle berikutnya + 2 bar
+                if alive and not dup and not na(c.wick_x) and not na(nc.candle_rigth)
+                    f_fm_eq_ln(c.wick_x, eq, nc.candle_rigth + 2, fm_eq_color)
+    0
+// [Step 51] Panel HTF2: EQ C2 melintasi C3 yang berjalan dari swing HTF2 terbaru (uji penutupan C2 sama dengan Phase, panggil setelah panel HTF2 diposisikan)
+f_draw_pane_eq2() =>
+    int sz = htf_2_candles.size()
+    if fm_eq_show and fm_eq_where != 'Chart' and htf2_cfg.show and sz > 2
+        UDT_HTF_Candle c0 = htf_2_candles.get(0)
+        UDT_HTF_Candle c1 = htf_2_candles.get(1)
+        UDT_HTF_Candle c2 = htf_2_candles.get(2)
+        bool new_c2 = (c0.l < c1.l and c0.c > c1.l) or (c0.h > c1.h and c0.c < c1.h)
+        bool b3 = c1.l < c2.l and c1.c > c2.l
+        bool r3 = c1.h > c2.h and c1.c < c2.h
+        if not new_c2 and b3 != r3 and not (b3 ? c0.l < c1.l : c0.h > c1.h) and not na(c1.wick_x) and not na(c0.candle_rigth)
+            f_fm_eq_ln(c1.wick_x, f_c2_eq(b3, c1.o, c1.c, c1.h, c1.l), c0.candle_rigth + 2, fm_eq_color)
+    0
+
+// [Step 11] SMT di panel HTF1: wick ke wick (C1 -> C2, C2 -> C3)
+f_draw_pane_psp2() =>  // [Step 56] Label HTF2 PSP di atas wick
+    if h2_psp_on and htf_2_candles.size() > 0  // [Step 56] Label HTF2 PSP di atas wick
+        for c in htf_2_candles
+            if not na(c.wick_x)
+                bool live = c.o_idx == h2p_o_idx and f_h2_psp_live()
+                if h2_psp_idx.includes(c.o_idx) or live
+                    bin.bin_lbl.push(label.new(x = c.wick_x, y = c.h, text = 'PSP', xloc = xloc.bar_index, style = label.style_label_down, color = color.new(color.white, 100), textcolor = live ? psp_live_col : f_psp_col(h2_psp_idx, h2_psp_dir, c.o_idx), size = psp_size, text_font_family = global_font_family))
+    0
+// [Mark II ab] Garis HTF2 Candle SMT (panel HTF2)
+f_h2_pane_candle(int oi) =>
+    UDT_HTF_Candle found = na
+    if not na(oi)
+        for c in htf_2_candles
+            if c.o_idx == oi
+                found := c
+                break
+    found
+f_h2c_draw(HcMark mk) =>
+    UDT_HTF_Candle a = f_h2_pane_candle(mk.ref_o)
+    UDT_HTF_Candle b = f_h2_pane_candle(mk.cur_o)
+    if not na(a) and not na(b) and not na(a.wick_x) and not na(b.wick_x)
+        f_smt_mark(a.wick_x, mk.y1, b.wick_x, mk.y2, mk.nm, not mk.bear, true)
+    0
+f_draw_h2c() =>
+    if h2c_on and htf_2_candles.size() > 1
+        if hc_mode == 'Live'
+            if not na(h2c_cur_o)
+                for bear in array.from(true, false)
+                    HcMark mk = f_hc_eval_h(h2c_hist, bear, h2c_cur_o, h2c_ch, h2c_cl, h2c_ah, h2c_al, h2c_bh, h2c_bl)
+                    if not na(mk)
+                        f_h2c_draw(mk)
+        else
+            for mk in h2c_marks
+                f_h2c_draw(mk)
+    0
+// [Mark II i] Garis HTF Candle SMT (panel HTF1 / HTF2): wick ke wick, warna SMT panel
+f_hc_draw(HcMark mk) =>
+    UDT_HTF_Candle a = f_fm_pane_candle(mk.ref_o)
+    UDT_HTF_Candle b = f_fm_pane_candle(mk.cur_o)
+    if not na(a) and not na(b) and not na(a.wick_x) and not na(b.wick_x)
+        f_smt_mark(a.wick_x, mk.y1, b.wick_x, mk.y2, mk.nm, not mk.bear, true)
+    0
+f_hc_pane(array<HcBar> hist, array<HcMark> marks, int cur_o, SmtTracker tc, SmtTracker t1, SmtTracker t2) =>
+    if hc_mode == 'Live'
+        if not na(cur_o)
+            for bear in array.from(true, false)
+                HcMark mk = f_hc_eval_h(hist, bear, cur_o, tc.h, tc.l, t1.h, t1.l, t2.h, t2.l)
+                if not na(mk)
+                    f_hc_draw(mk)
+    else
+        for mk in marks
+            f_hc_draw(mk)
+    0
+// [Mark II l] Gambar SMT Fill (panel HTF1): garis titik-titik A -> B dengan warna SMT panel, tanpa label
+f_fg_draw(FgMark m) =>
+    UDT_HTF_Candle a = f_fm_pane_candle(m.a_o)
+    UDT_HTF_Candle b = f_fm_pane_candle(m.b_o)
+    if not na(a) and not na(b) and not na(a.wick_x) and not na(b.wick_x)
+        bin.bin_ln.push(line.new(x1 = a.wick_x, y1 = m.ya, x2 = b.wick_x, y2 = m.yb, xloc = xloc.bar_index, color = fg_col, style = fg_style, width = fg_width))
+    0
+f_fg_pane() =>
+    for m in fg_marks1
+        f_fg_draw(m)
+    if hc_mode == 'Live' and hc_hist.size() > 0 and not na(hc_cur_o)
+        for g in fg_gaps1
+            if not (g.bull ? close < g.bot : close > g.top)
+                FgMark m = f_fg_eval(g, hc_hist.get(0), hc_cur_o, smt_tc.h, smt_tc.l, smt_t1.h, smt_t1.l, smt_t2.h, smt_t2.l)
+                if not na(m)
+                    f_fg_draw(m)
+    0
+f_draw_pane_smt() =>
+    if smt_on and hc_show and fg_show and htf1_cfg.show and htf_1_candles.size() > 1
+        f_fg_pane()
+    if smt_on and hc_show and htf1_cfg.show and htf_1_candles.size() > 1
+        f_hc_pane(hc_hist, hc_marks, hc_cur_o, smt_tc, smt_t1, smt_t2)
+    if smt_on and smt_pane and htf1_cfg.show and htf_1_candles.size() > 0
+        for ls in f_smt_live()  // [Step 28] SMT C1 -> C2 yang berjalan
+            UDT_HTF_Candle a = f_fm_pane_candle(nz(ls.rs_o_idx, ls.swept_o_idx))
+            UDT_HTF_Candle b = f_fm_pane_candle(ls.htf_candle_idx)
+            if not na(a) and not na(b)
+                f_smt_mark(a.wick_x, ls.smt1_y1, b.wick_x, ls.smt1_y2, ls.smt1_sym, ls.is_bullish, true)
+        for sl in f_fm_slots()
+            if not sl.is_invalid
+                if sl.smt1
+                    UDT_HTF_Candle a = f_fm_pane_candle(nz(sl.rs_o_idx, sl.swept_o_idx))
+                    UDT_HTF_Candle b = f_fm_pane_candle(sl.htf_candle_idx)
+                    if not na(a) and not na(b)
+                        f_smt_mark(a.wick_x, sl.smt1_y1, b.wick_x, sl.smt1_y2, sl.smt1_sym, sl.is_bullish, true)
+                if sl.smt2
+                    UDT_HTF_Candle a = f_fm_pane_candle(sl.htf_candle_idx)
+                    UDT_HTF_Candle b = f_fm_pane_candle(sl.c3_o_idx)
+                    if not na(a) and not na(b)
+                        f_smt_mark(a.wick_x, sl.smt2_y1, b.wick_x, sl.smt2_y2, sl.smt2_sym, sl.is_bullish, true)
+    0
+
+// [Mark II af] Tambahan panel HTF3: garis Open / High / Low, harga OHLC, label fase (candle berjalan = indeks 0 dari candle yang tampil)
+f_h3_find(int key) =>
+    H3Ph r = na
+    for q in h3_phs
+        if q.key == key
+            r := q
+    r
+f_h3_txt(H3Ph s, bool live) =>
+    string t = ''
+    if live
+        t := s.st == 0 ? 'Accumulating' : s.st == 1 ? 'Manipulating' : s.st == 2 ? 'Distributing?' : s.st == 3 ? 'Distributing' : s.st == 4 ? 'Expanding' : 'Failed'
+    else
+        t := s.st == 0 ? 'Inside' : s.st == 1 ? 'Manipulated' : s.st == 2 ? 'Distributed?' : s.st == 3 ? 'Distributed' : s.st == 4 ? 'Expanded' : 'Failed'
+    int ad = s.st == 4 ? -s.dir : s.dir
+    t + (s.st >= 1 and s.st <= 4 and s.dir != 0 ? (ad > 0 ? ' ▲' : ' ▼') : '')
+f_draw_h3(array<UDT_HTF_Candle> cs) =>
+    if htf3_cfg.show and cs.size() > 0
+        UDT_HTF_Candle rc = cs.get(0)
+        int back = bar_index - 4900
+        if not na(rc.candle_left) and not na(rc.wick_x) and not na(rc.candle_rigth)
+            if h3_ln_show
+                int xo = math.max(rc.o_idx, back)
+                if rc.candle_left > xo
+                    f_idx_ln(xo, rc.o, rc.candle_left, rc.o, h3_ln_col, h3_ln_st)
+                int xh = math.max(rc.h_idx, back)
+                if rc.wick_x > xh
+                    f_idx_ln(xh, rc.h, rc.wick_x, rc.h, h3_ln_col, h3_ln_st)
+                int xl = math.max(rc.l_idx, back)
+                if rc.wick_x > xl
+                    f_idx_ln(xl, rc.l, rc.wick_x, rc.l, h3_ln_col, h3_ln_st)
+            if h3_px_show
+                array<float> up_ = array.new<float>()
+                for v in array.from(rc.o, rc.h, rc.l, rc.c)
+                    bool dup = false
+                    for q in up_
+                        if math.abs(q - v) < syminfo.mintick * 0.5
+                            dup := true
+                    if not dup
+                        up_.push(v)
+                        bin.bin_lbl.push(label.new(x = rc.candle_rigth + 2, y = v, text = str.tostring(v, format.mintick), xloc = xloc.bar_index, yloc = yloc.price, style = label.style_label_left, color = color.new(color.white, 100), textcolor = h3_px_col, size = h3_px_size, text_font_family = global_font_family))
+        if h3_ph_ok
+            bool above = h3_ph_pos == 'Above'
+            for i = 0 to cs.size() - 1
+                UDT_HTF_Candle c = cs.get(i)
+                H3Ph s = f_h3_find(c.o_idx)
+                if not na(s) and not na(c.wick_x)
+                    bin.bin_lbl.push(label.new(x = c.wick_x, y = above ? c.h : c.l, text = f_h3_txt(s, i == 0), xloc = xloc.bar_index, yloc = yloc.price, style = above ? label.style_label_down : label.style_label_up, color = color.new(color.white, 100), textcolor = h3_ph_col, size = h3_ph_size, text_font_family = global_font_family))
+    0
+// EQ (titik-titik, tampilan sama dengan Previous EQ HTF1): candle sebelumnya melintasi candle berjalan + candle ekspansi terbaru sampai ada close di luarnya
+f_h3_eq_lbl(int x, float y, bool bull) =>
+    bin.bin_lbl.push(label.new(x = x, y = y, text = '0.5 ' + (h3_tf_in == 'Weekly' ? 'W' : 'D'), xloc = xloc.bar_index, yloc = yloc.price, style = label.style_label_left, color = color.new(color.white, 100), textcolor = bull ? h3_eq_bull : h3_eq_bear, size = size.tiny, text_font_family = global_font_family))
+    0
+f_draw_h3_eq(array<UDT_HTF_Candle> cs) =>
+    int n = htf_3_candles.size()
+    if h3_eq_show and htf3_cfg.show and cs.size() > 0 and n > 1
+        UDT_HTF_Candle rc = htf_3_candles.get(0)
+        if not na(rc.candle_rigth)
+            int xe = rc.candle_rigth + 2
+            int back = bar_index - 4900
+            UDT_HTF_Candle pv = htf_3_candles.get(1)
+            int xp = 1 < cs.size() ? pv.wick_x : math.max(pv.o_idx, back)
+            if not na(xp) and xe > xp
+                f_fm_eq_ln(xp, (pv.h + pv.l) / 2.0, xe, fm_eq_color)
+                f_h3_eq_lbl(xe, (pv.h + pv.l) / 2.0, pv.c >= pv.o)
+            if n > 2
+                bool done = false
+                for i = 1 to n - 2
+                    if done
+                        break
+                    UDT_HTF_Candle c = htf_3_candles.get(i)
+                    UDT_HTF_Candle pq = htf_3_candles.get(i + 1)
+                    float rg = c.h - c.l
+                    bool big_b = rg > 0 and math.abs(c.c - c.o) >= rg * 0.5
+                    bool bu = c.c > c.o and c.c > pq.h
+                    bool br = c.c < c.o and c.c < pq.l
+                    if big_b and (bu or br)
+                        done := true
+                        float eq = (c.h + c.l) / 2.0
+                        bool alive = true
+                        if i > 1
+                            for j = 1 to i - 1
+                                float cc = htf_3_candles.get(j).c
+                                if bu ? cc < eq : cc > eq
+                                    alive := false
+                                    break
+                        if alive and i > 1  // i == 1 adalah candle sebelumnya (sudah digambar di atas)
+                            int x1 = i < cs.size() ? c.wick_x : math.max(c.o_idx, back)
+                            int x2 = i - 1 < cs.size() ? htf_3_candles.get(i - 1).candle_rigth + 2 : xe
+                            if not na(x1) and not na(x2) and x2 > x1
+                                f_fm_eq_ln(x1, eq, x2, fm_eq_color)
+                                f_h3_eq_lbl(x2, eq, bu)
+    0
+
+// [Mark II aj] PDH / PDL seperti Session Levels: from_o = bar pertama setelah candle berakhir; belum tersapu = sampai 10 bar setelah bar terakhir, nama di kanan; tersapu = berhenti di bar penyapu, nama di awal
+f_h3_pd_one(float y, int x0, bool hi, int from_o, int k) =>
+    int n = math.min(bar_index - from_o, 4900)
+    int sw = na
+    for i = n to 0
+        if na(sw) and (hi ? high[i] > y : low[i] < y)
+            sw := bar_index - i
+    bool swept = not na(sw)
+    int x1 = math.max(x0, bar_index - 4900)
+    int x2 = swept ? sw : bar_index + 10
+    if x2 > x1
+        bin.bin_ln.push(line.new(x1 = x1, y1 = y, x2 = x2, y2 = y, xloc = xloc.bar_index, color = h3_pd_col, style = swept ? h3_pd_sw_st : h3_pd_un_st, width = 1))
+        if not swept or h3_pd_swl
+            bin.bin_lbl.push(label.new(x = swept ? x1 : x2, y = y, text = (h3_tf_in == 'Weekly' ? 'PW' : 'PD') + (hi ? 'H' : 'L') + (k > 1 ? '-' + str.tostring(k) : ''), xloc = xloc.bar_index, yloc = yloc.price, style = swept ? (hi ? label.style_label_down : label.style_label_up) : label.style_label_left, color = color.new(color.white, 100), textcolor = h3_pd_col, size = size.tiny, text_font_family = global_font_family))
+    0
+f_draw_h3_pd() =>
+    if h3_pd_show and htf3_cfg.show and htf_3_candles.size() > 1
+        for k = 1 to math.min(h3_pd_sets, htf_3_candles.size() - 1)
+            UDT_HTF_Candle pv = htf_3_candles.get(k)
+            UDT_HTF_Candle nx = htf_3_candles.get(k - 1)
+            if not na(pv.h) and not na(pv.l) and not na(nx.o_idx) and not na(pv.h_idx) and not na(pv.l_idx)
+                f_h3_pd_one(pv.h, pv.h_idx, true, nx.o_idx, k)
+                f_h3_pd_one(pv.l, pv.l_idx, false, nx.o_idx, k)
+    0
+
+//==============================================================================
+// [FM] AKHIR MESIN CISD
+//==============================================================================
+
+//==============================================================================
+// Gambar / update saat runtime
+//==============================================================================
+
+
+if barstate.islast
+    htf1_close_time = time_close(actual_tf_1)
+    htf2_close_time = time_close(actual_tf_2)
+    htf3_close_time = time_close(actual_tf_3)  // [Mark II af]
+    bin.clean_bin()
+    f_draw_fm_sweeps()  // [Step 18] sweep line (chart, setup FM)
+    f_fm_draw_cisd()  // [FM] Garis CISD
+    f_fm_draw_early()  // [Step 16] Early CISD (chart, bar berjalan)
+    f_draw_vlines()  // [Step 7] Garis vertikal (open HTF1)
+    f_fm_draw_tspot()  // [FM] T-Spot C3 / C4 (chart)
+    f_fm_draw_labels()  // [FM] Label C1-C4 (chart)
+    f_fm_draw_eq()  // [FM] Previous EQ (chart)
+    f_draw_smt()  // [Step 11] SMT (chart)
+    float shared_htf_label_top = na
+    float shared_htf_label_bottom = na
+    _align_htf_labels = htf_label_alignment == 'Align'
+    [htf1_merge_top, htf1_merge_bottom] = f_htf_label_bounds(htf_1_candles, _align_htf_labels and htf1_cfg.show and htf1_cfg.htf_show, shared_htf_label_top, shared_htf_label_bottom)
+    shared_htf_label_top := htf1_merge_top
+    shared_htf_label_bottom := htf1_merge_bottom
+    [htf2_merge_top, htf2_merge_bottom] = f_htf_label_bounds(htf_2_candles, _align_htf_labels and htf2_cfg.show and htf2_cfg.htf_show, shared_htf_label_top, shared_htf_label_bottom)
+    shared_htf_label_top := htf2_merge_top
+    shared_htf_label_bottom := htf2_merge_bottom
+    offset = htf_sweeps_offset
+    offset := f_run_htf_pane(htf_1_candles, htf1_cfg, offset, shared_htf_label_top, shared_htf_label_bottom, htf1_close_time, global_text_color, false)
+    array<int> psp_tagged = f_fm_draw_pane_labels()  // [FM] Label C1-C4 (panel HTF1)
+    f_draw_pane_psp(psp_tagged)  // [Step 14] PSP (panel HTF1)
+    f_fm_draw_pane_eq()  // [FM] Previous EQ (panel HTF1)
+    f_draw_xeq()  // [Mark II z] Expansion EQ (panel HTF1)
+    f_draw_pane_smt()  // [Step 11] SMT (panel HTF1)
+    f_draw_ss()  // [Mark II t] Strength Switch (panel HTF1)
+    f_draw_pane_last(htf_1_candles, htf1_cfg.show)  // [Step 52] high / low candle HTF1 tertutup terakhir
+    f_draw_sl()  // [Mark II s] Session Levels
+    f_draw_htf_open()  // [Step 36] Open Lines
+    f_draw_htf1_open()  // [Step 45] HTF Open (chart -> panel HTF1)
+    offset := f_run_htf_pane(htf_2_candles, htf2_cfg, offset, shared_htf_label_top, shared_htf_label_bottom, htf2_close_time, global_text_color, false)
+    f_draw_pane_sweeps()  // [Step 27] garis sweep panel (HTF1 dari FM, HTF2 terbaru)
+    f_draw_pane_psp2()  // [Step 56] HTF2 PSP
+    f_draw_h2c()  // [Mark II ab] HTF2 Candle SMT
+    f_draw_pane_last(htf_2_candles, htf2_cfg.show)  // [Step 52c] high / low candle HTF2 tertutup terakhir
+    f_draw_7h_sessions()  // [Mark II o] waktu open di bawah candle panel 7H
+    f_draw_pane_eq2()  // [Step 51] EQ C2 di panel HTF2
+    array<UDT_HTF_Candle> h3_view = htf_3_candles.size() > h3_count ? htf_3_candles.slice(0, h3_count) : htf_3_candles  // [Mark II af] HTF3 (D / W)
+    offset := f_run_htf_pane(h3_view, htf3_cfg, offset, float(na), float(na), htf3_close_time, global_text_color, false)
+    f_draw_h3(h3_view)
+    f_draw_h3_eq(h3_view)
+    f_draw_h3_pd()  // [Mark II aj] PDH / PDL
+    f_draw_key_levels()  // [Mark II aa] Key Levels (chart)
+
+// [Step 21] Status Bar: XAUUSD, XAGUSD, XAUGBP  |  5M-1H  |  PD XAUUSD↑ XAGUSD– XAUGBP↕
+var table sb_tbl = table.new(sb_pos, 1, 1, bgcolor = na, frame_width = 0, border_width = 0)
+if barstate.islast
+    string sb_txt = ''
+    if sb_show
+        array<string> segs = array.new<string>()
+        bool u2 = smt_sym2_enable_input and smt_sym2_resolved != ''
+        bool u3 = smt_sym3_enable_input and smt_sym3_resolved != ''
+        if sb_sym
+            array<string> nms = array.from(syminfo.ticker)
+            if smt_sym1_resolved != ''
+                nms.push(smt_sym1_ticker + (smt_data_on and na(smt_s1_c) ? ' (no data)' : ''))  // [Mark II v] request simbol tidak mengembalikan apa pun di bar ini
+            if u2
+                nms.push(smt_sym2_ticker + (smt_data_on and na(smt_s2_c) ? ' (no data)' : ''))
+            if u3
+                nms.push(smt_sym3_ticker)
+            segs.push(nms.join(', '))
+        if sb_model
+            segs.push(fm_valid ? f_sb_tf(tf_sec) + '-' + f_sb_tf(fm_htf_sec) : 'No Model')
+        sb_txt := segs.join('  |  ')
+    table.cell(sb_tbl, 0, 0, sb_txt, text_color = sb_col, text_size = sb_size, text_font_family = font.family_monospace, bgcolor = na)
+//----------------
+// --AKHIR SKRIP
+//----------------
